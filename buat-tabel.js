@@ -59,6 +59,9 @@ const queryBuatTabel = `
     tanggal_pindah DATE,
     jam_pindah TIME,
     waktu_tunggu VARCHAR(100),
+    status_bed VARCHAR(50) NOT NULL DEFAULT 'Menunggu Cleaning Service'
+      CHECK (status_bed IN ('Menunggu Cleaning Service', 'Menunggu Linen/Alat', 'Kamar Siap - Menunggu Transpor')),
+    bed_ready_at TIMESTAMPTZ,
 
     waktu_input TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   );

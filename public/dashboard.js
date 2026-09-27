@@ -3,208 +3,234 @@
   if (!app) throw new Error('mppcare-core.js harus dimuat sebelum dashboard.js.');
 
   let completedRows = [];
-  let distributionChart = null;
-  let analysisChart = null;
   let wired = false;
+  let pendingActivations = [];
+  let igdRecords = [];
+  let refreshTimer = null;
+  let hasActivations = false;
 
   function mount() {
     if (wired) return;
     wired = true;
-    document.getElementById('refreshDashboardButton')?.addEventListener('click', () => app.refreshData());
-    document.getElementById('pilihanGrafikDinamis')?.addEventListener('change', () => renderDistribution(app.state.activations));
-    document.getElementById('terapkanFilterRiwayat')?.addEventListener('click', renderHistory);
-    document.getElementById('tabelAntrianDashboard')?.addEventListener('click', openActivation);
-    document.getElementById('tabelRiwayatDashboard')?.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-followup-id]');
-      if (button) showFollowUpDetail(button.dataset.followupId);
-    });
+    loadIgdRecords();
+    refreshTimer = window.setInterval(loadIgdRecords, 60000);
   }
 
   function onActivations(activations) {
-    renderKpisAndQueue(activations);
+    if (app.state.role === 'admisi' || !document.getElementById('view-dashboard')) return;
+    hasActivations = true;
+    pendingActivations = activations.filter((row) => row.status === 'Menunggu');
+    renderCommandCenter();
+    publishChartData();
     loadHistory(activations);
-    renderDistribution(activations);
   }
 
-  function renderKpisAndQueue(activations) {
-    const pending = activations.filter((row) => row.status === 'Menunggu');
-    document.getElementById('dash-total').textContent = activations.length;
-    document.getElementById('dash-pending').textContent = pending.length;
-    document.getElementById('dash-selesai').textContent = activations.length - pending.length;
+  function publishChartData() {
+    window.dispatchEvent(new CustomEvent('mppcare:dashboard-data', {
+      detail: {
+        activations: app.state.activations,
+        igdRecords,
+        followUps: completedRows,
+        role: app.state.role,
+        mppTarget: app.state.mppTarget
+      }
+    }));
+  }
 
-    const body = document.getElementById('tabelAntrianDashboard');
-    body.replaceChildren();
-    if (!pending.length) {
-      const tr = document.createElement('tr');
-      const td = document.createElement('td');
-      td.colSpan = 6;
-      td.className = 'text-center text-muted py-4';
-      td.textContent = 'Belum ada pasien menunggu tindak lanjut.';
-      tr.append(td);
-      body.append(tr);
+  function parseDateTime(date, time = '00:00') {
+    if (!date) return null;
+    const parsed = new Date(`${String(date).slice(0, 10)}T${String(time || '00:00').slice(0, 8)}`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function elapsedMinutes(start, end = new Date()) {
+    if (!start || !end || end < start) return null;
+    return Math.floor((end.getTime() - start.getTime()) / 60000);
+  }
+
+  function localDateKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function activationAge(activation, now = new Date()) {
+    const activationDate = String(activation.tgl_aktivasi || '').slice(0, 10);
+    const insertedAt = activation.waktu_input ? new Date(activation.waktu_input) : null;
+    const insertedDate = insertedAt && !Number.isNaN(insertedAt.getTime()) ? localDateKey(insertedAt) : '';
+    if (insertedDate === activationDate) {
+      const minutes = elapsedMinutes(insertedAt, now);
+      return minutes == null ? null : { minutes, label: formatDuration(minutes) };
+    }
+    const enteredAt = parseDateTime(activationDate);
+    const minutes = elapsedMinutes(enteredAt, now);
+    if (minutes == null) return null;
+    const today = localDateKey(now);
+    if (activationDate === today) return { minutes: 0, label: 'Hari ini · jam tidak tersedia' };
+    return { minutes, label: `${Math.floor(minutes / 1440)}+ hari` };
+  }
+
+  function formatDuration(minutes) {
+    if (minutes == null) return '-';
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const remaining = minutes % 60;
+    if (days) return `${days} hari ${hours} j`;
+    if (hours) return `${hours} j ${remaining} m`;
+    return `${remaining} m`;
+  }
+
+  function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  }
+
+  function renderCommandCenter() {
+    if (!hasActivations) return;
+    const now = new Date();
+    const pending = pendingActivations.map((activation) => ({
+      activation,
+      age: activationAge(activation, now)
+    })).filter((item) => item.age != null)
+      .sort((left, right) => right.age.minutes - left.age.minutes);
+    const completedCount = app.state.activations.length - pendingActivations.length;
+    setText('dash-pending', pendingActivations.length);
+    setText('dash-selesai', completedCount);
+    setText('dash-total-label', `Dari ${app.state.activations.length} total aktivasi`);
+
+    const urgentBody = document.getElementById('tabelTopUrgent');
+    if (urgentBody) {
+      urgentBody.replaceChildren();
+      if (!pending.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 4;
+        cell.className = 'text-center text-muted py-4';
+        cell.textContent = 'Tidak ada aktivasi yang menunggu tindak lanjut.';
+        row.append(cell);
+        urgentBody.append(row);
+      } else {
+        pending.slice(0, 5).forEach(({ activation, age }) => {
+          const row = document.createElement('tr');
+          [
+            `${activation.nama_pasien || '-'} · RM ${activation.no_rm || '-'}`,
+            activation.ruang || '-',
+            activation.mpp_tujuan || '-',
+            age.label
+          ].forEach((value) => {
+            const cell = document.createElement('td');
+            cell.textContent = value;
+            row.append(cell);
+          });
+          urgentBody.append(row);
+        });
+      }
+    }
+    setText('urgentSummary', `${pendingActivations.length} aktivasi menunggu · ditampilkan ${Math.min(pending.length, 5)} yang terlama`);
+
+    const icuOverdue = pending.filter(({ activation, age }) => /\bicu\b|picu/i.test(activation.ruang || '') && age.minutes >= 60).length;
+    const igdOverdue = igdRecords.filter((record) => !record.bangsal_tujuan)
+      .filter((record) => {
+        const start = parseDateTime(record.tanggal, record.jam_inden || record.jam_daftar);
+        return elapsedMinutes(start, now) >= 30;
+      }).length;
+    renderBottlenecks(igdOverdue, icuOverdue);
+
+    const transferredWaits = igdRecords.map((record) => {
+      if (!record.bangsal_tujuan || !record.tanggal_pindah || !record.jam_pindah) return null;
+      const start = parseDateTime(record.tanggal, record.jam_inden || record.jam_daftar);
+      const end = parseDateTime(record.tanggal_pindah, record.jam_pindah);
+      return elapsedMinutes(start, end);
+    }).filter((minutes) => minutes != null);
+    setText('kpiIgdWait', transferredWaits.length
+      ? formatDuration(Math.round(transferredWaits.reduce((sum, minutes) => sum + minutes, 0) / transferredWaits.length))
+      : '-');
+    setText('kpiIgdSample', `${transferredWaits.length} pasien sudah pindah`);
+  }
+
+  function renderBottlenecks(igdOverdue, icuOverdue) {
+    const panel = document.getElementById('dashboardBottlenecks');
+    if (!panel) return;
+    panel.replaceChildren();
+    const alerts = [];
+    if (igdOverdue) alerts.push({ tone: 'danger', text: `${igdOverdue} pasien IGD menunggu kamar lebih dari 30 menit` });
+    if (icuOverdue) alerts.push({ tone: 'warning', text: `${icuOverdue} aktivasi PPA dari ICU/PICU belum di-TL lebih dari 1 jam` });
+    if (!alerts.length) {
+      const empty = document.createElement('div');
+      empty.className = 'dashboard-bottleneck-empty';
+      empty.innerHTML = '<i class="fas fa-circle-check"></i><span>Tidak ada bottleneck yang melewati batas SLA.</span>';
+      panel.append(empty);
       return;
     }
-
-    pending.slice(0, 100).forEach((row) => {
-      const tr = document.createElement('tr');
-      [row.tgl_aktivasi, row.nama_pasien, row.no_rm, row.ruang, row.nama_pelapor].forEach((value) => {
-        const td = document.createElement('td');
-        td.textContent = value || '-';
-        tr.append(td);
-      });
-      const actionCell = document.createElement('td');
-      actionCell.className = 'text-center';
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'btn btn-sm btn-outline-primary';
-      button.dataset.activationId = row.id;
-      button.textContent = app.canMpp(app.state.role) ? 'Proses' : 'Detail';
-      actionCell.append(button);
-      tr.append(actionCell);
-      body.append(tr);
+    alerts.forEach((alert) => {
+      const item = document.createElement('div');
+      item.className = `dashboard-bottleneck dashboard-bottleneck-${alert.tone}`;
+      const icon = document.createElement('i');
+      icon.className = alert.tone === 'danger' ? 'fas fa-triangle-exclamation' : 'fas fa-clock';
+      const message = document.createElement('strong');
+      message.textContent = alert.text;
+      item.append(icon, message);
+      panel.append(item);
     });
+  }
+
+  async function loadIgdRecords() {
+    if (!document.getElementById('view-dashboard')) return;
+    const { data, error } = await app.supabase.from('monitoring_igd')
+      .select('tanggal,jam_inden,jam_daftar,bangsal_tujuan,tanggal_pindah,jam_pindah,nomor_bed')
+      .order('tanggal', { ascending: false }).limit(1000);
+    if (error) {
+      app.setAlert('dashboardAlert', `Data waktu tunggu IGD tidak dapat dimuat: ${error.message}`);
+      return;
+    }
+    igdRecords = data || [];
+    renderCommandCenter();
+    publishChartData();
+  }
+
+  function averageResponseMinutes(rows) {
+    const durations = rows.map((item) => {
+      const enteredAt = reliableActivationTimestamp(item) && item.activation?.waktu_input
+        ? new Date(item.activation.waktu_input)
+        : null;
+      const followedAt = item.waktu_simpan ? new Date(item.waktu_simpan) : null;
+      return elapsedMinutes(enteredAt, followedAt);
+    }).filter((minutes) => minutes != null);
+    return durations.length
+      ? Math.round(durations.reduce((sum, minutes) => sum + minutes, 0) / durations.length)
+      : null;
+  }
+
+  function reliableActivationTimestamp(item) {
+    if (!item.activation?.waktu_input || !item.activation?.tgl_aktivasi) return false;
+    const enteredAt = new Date(item.activation.waktu_input);
+    return !Number.isNaN(enteredAt.getTime())
+      && localDateKey(enteredAt) === String(item.activation.tgl_aktivasi).slice(0, 10);
+  }
+
+  function renderMppResponseKpi() {
+    const average = averageResponseMinutes(completedRows);
+    setText('kpiMppResponse', average == null ? '-' : formatDuration(average));
+    const measuredCount = completedRows.filter((item) => reliableActivationTimestamp(item) && item.waktu_simpan).length;
+    setText('kpiMppSample', measuredCount
+      ? `${measuredCount} tindak lanjut dengan waktu terukur`
+      : 'Data waktu historis belum cukup untuk mengukur durasi');
   }
 
   async function loadHistory(activations) {
     const { data, error } = await app.supabase.from('tindak_lanjut_mpp')
-      .select('id,aktivasi_mpp_id,tanggal_tl,nama_petugas_mpp,analisis_informasi,plan_of_care,keterangan')
+      .select('id,aktivasi_mpp_id,tanggal_tl,waktu_simpan,nama_petugas_mpp,analisis_informasi,plan_of_care,keterangan')
       .order('tanggal_tl', { ascending: false }).limit(1000);
     if (error) {
       completedRows = [];
       app.setAlert('dashboardAlert', `Riwayat tidak dapat dimuat: ${error.message}`);
-      renderHistory();
+      renderMppResponseKpi();
       return;
     }
     completedRows = (data || []).map((item) => ({
       ...item,
       activation: activations.find((activation) => activation.id === item.aktivasi_mpp_id)
     })).filter((item) => item.activation);
-    renderHistory();
-    renderAnalysis();
-    if (document.getElementById('pilihanGrafikDinamis')?.value === 'tren_mpp') renderDistribution(activations);
-  }
-
-  function renderHistory() {
-    const body = document.getElementById('tabelRiwayatDashboard');
-    if (!body) return;
-    const targetFilter = document.getElementById('filterPetugasMpp')?.value || 'SEMUA';
-    const startDate = document.getElementById('filterTglMulai')?.value || '';
-    const endDate = document.getElementById('filterTglAkhir')?.value || '';
-    const rows = completedRows.filter((item) => {
-      const target = item.activation.mpp_tujuan || '';
-      return (targetFilter === 'SEMUA' || target === targetFilter)
-        && (!startDate || item.tanggal_tl >= startDate)
-        && (!endDate || item.tanggal_tl <= endDate);
-    });
-    body.replaceChildren();
-    if (!rows.length) {
-      const tr = document.createElement('tr');
-      const td = document.createElement('td');
-      td.colSpan = 7;
-      td.className = 'text-center text-muted py-4';
-      td.textContent = 'Tidak ada riwayat sesuai filter.';
-      tr.append(td);
-      body.append(tr);
-      return;
-    }
-    rows.slice(0, 100).forEach((item) => {
-      const tr = document.createElement('tr');
-      [item.tanggal_tl, item.activation.nama_pasien, item.activation.no_rm, item.activation.ruang, item.nama_petugas_mpp, (item.analisis_informasi || []).join(', ')].forEach((value) => {
-        const td = document.createElement('td');
-        td.textContent = value || '-';
-        tr.append(td);
-      });
-      const action = document.createElement('td');
-      action.className = 'text-center';
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'btn btn-sm btn-outline-primary';
-      button.dataset.followupId = item.id;
-      button.innerHTML = '<i class="fas fa-eye me-1"></i>Detail';
-      action.append(button);
-      tr.append(action);
-      body.append(tr);
-    });
-  }
-
-  function renderDistribution(activations) {
-    const canvas = document.getElementById('chartDinamis');
-    if (!canvas || !window.Chart) return;
-    const mode = document.getElementById('pilihanGrafikDinamis')?.value || 'ruang';
-    const type = mode === 'pembiayaan' ? 'pie' : mode === 'tren_mpp' ? 'line' : 'bar';
-    let labels = [];
-    let datasets = [];
-
-    if (mode === 'tren_mpp') {
-      const monthCounts = new Map();
-      completedRows.forEach((item) => {
-        const month = String(item.tanggal_tl || '').slice(0, 7);
-        if (!month) return;
-        const counts = monthCounts.get(month) || { PRIYO: 0, ARUM: 0 };
-        if (counts[item.activation.mpp_tujuan] != null) counts[item.activation.mpp_tujuan] += 1;
-        monthCounts.set(month, counts);
-      });
-      labels = [...monthCounts.keys()].sort();
-      datasets = [
-        { label: 'Priyo', data: labels.map((month) => monthCounts.get(month).PRIYO), borderColor: '#0d6efd', backgroundColor: '#0d6efd', tension: .25 },
-        { label: 'Arum', data: labels.map((month) => monthCounts.get(month).ARUM), borderColor: '#ffc107', backgroundColor: '#ffc107', tension: .25 }
-      ];
-    } else {
-      const field = mode === 'ruang' ? 'ruang' : mode === 'pembiayaan' ? 'jenis_pembiayaan' : 'diagnosa';
-      const counts = new Map();
-      activations.forEach((row) => {
-        const label = String(row[field] || 'Tanpa Keterangan').trim();
-        counts.set(label, (counts.get(label) || 0) + 1);
-      });
-      const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, mode === 'diagnosa' ? 10 : 12);
-      labels = entries.map(([label]) => label);
-      datasets = [{ label: 'Jumlah pasien', data: entries.map(([, value]) => value), backgroundColor: ['#0d6efd', '#ffc107', '#198754', '#dc3545', '#0dcaf0', '#6c757d', '#fd7e14', '#6610f2'], borderRadius: type === 'bar' ? 3 : 0 }];
-    }
-
-    distributionChart?.destroy();
-    distributionChart = new Chart(canvas, {
-      type,
-      data: { labels, datasets },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: type !== 'bar', position: 'bottom' } }, scales: type === 'bar' || type === 'line' ? { y: { beginAtZero: true, ticks: { precision: 0 } } } : {} }
-    });
-  }
-
-  function renderAnalysis() {
-    const canvas = document.getElementById('chartAnalisis');
-    if (!canvas || !window.Chart) return;
-    const counts = new Map();
-    completedRows.forEach((item) => (item.analisis_informasi || []).forEach((analysis) => counts.set(analysis, (counts.get(analysis) || 0) + 1)));
-    const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-    analysisChart?.destroy();
-    analysisChart = new Chart(canvas, {
-      type: 'pie',
-      data: { labels: entries.length ? entries.map(([label]) => label) : ['Belum ada data'], datasets: [{ data: entries.length ? entries.map(([, count]) => count) : [1], backgroundColor: ['#0d6efd', '#ffc107', '#198754', '#dc3545', '#0dcaf0', '#6c757d', '#fd7e14', '#6610f2'] }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-    });
-  }
-
-  function showFollowUpDetail(id) {
-    const item = completedRows.find((row) => row.id === id);
-    if (!item) return;
-    document.getElementById('teksModalAnalisis').textContent = (item.analisis_informasi || []).join('\n') || 'Belum diisi';
-    document.getElementById('teksModalPlanOfCare').textContent = item.plan_of_care || 'Belum diisi';
-    document.getElementById('teksModalKeterangan').textContent = `Keterangan: ${item.keterangan || '-'} · Petugas: ${item.nama_petugas_mpp || '-'}`;
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetailMpp')).show();
-  }
-
-  function openActivation(event) {
-    const button = event.target.closest('[data-activation-id]');
-    if (!button) return;
-    const activation = app.state.activations.find((row) => row.id === button.dataset.activationId);
-    if (!activation) return;
-    if (app.canMpp(app.state.role)) {
-      window.switchView('view-tindak-lanjut', document.querySelector('[data-role="mpp,admin"] .nav-link'));
-      const select = document.getElementById('selectPasienMPP');
-      select.value = activation.id;
-      select.dispatchEvent(new Event('change'));
-    } else {
-      window.alert(`${activation.nama_pasien} · RM ${activation.no_rm}\nStatus: ${activation.status}\nMPP tujuan: ${activation.mpp_tujuan}`);
-    }
+    renderMppResponseKpi();
+    publishChartData();
   }
 
   app.modules.dashboard = { mount, onActivations };

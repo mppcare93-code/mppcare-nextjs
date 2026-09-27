@@ -8,11 +8,13 @@
     'supabase-igd.js',
     'mppcare-core.js',
     'dashboard.js',
+    'workspace-mpp.js',
+    'arsip-mpp.js',
     'form-ppa.js',
     'tindak-lanjut-mpp.js',
-    'form-a.js',
-    'igd.js'
+    'form-a.js'
   ];
+  if (document.getElementById('view-igd')) modules.push('igd.js');
   const loadModule = (index) => {
     if (index >= modules.length) {
       window.dispatchEvent(new Event('mppcare:modules-ready'));

@@ -19,6 +19,7 @@ const rooms = [
 
 const accounts = [
   { username: 'admin', metadata: { role: 'admin' } },
+  { username: 'admisi', metadata: { role: 'admisi', room: 'IGD' } },
   { username: 'mpp1', metadata: { role: 'mpp', mpp_tujuan: 'PRIYO' } },
   { username: 'mpp2', metadata: { role: 'mpp', mpp_tujuan: 'ARUM' } },
   ...rooms.map(([username, room]) => ({

@@ -52,11 +52,16 @@
     },
     async refreshData() {
       const { role, mppTarget } = app.state;
+      if (role === 'admisi') {
+        app.state.activations = [];
+        Object.values(app.modules).forEach((module) => module.onActivations?.([]));
+        return;
+      }
       const { data, error } = await supabase.from('aktivasi_mpp')
         .select('id,tgl_aktivasi,tgl_masuk_rs,nama_pasien,no_rm,usia,ruang,nama_pelapor,jenis_pembiayaan,diagnosa,dpjp,data_informasi,mpp_tujuan,status,waktu_input')
         .order('waktu_input', { ascending: false }).limit(500);
       if (error) {
-        app.setAlert('dashboardAlert', error.message);
+        app.setAlert(document.getElementById('workspaceAlert') ? 'workspaceAlert' : 'dashboardAlert', error.message);
         return;
       }
       app.state.activations = role === 'mpp'
@@ -93,36 +98,61 @@
     const mppTarget = session.user.app_metadata?.mpp_tujuan || '';
     const room = app.getUserRoom(session.user);
     const profile = roomAccounts.find(([, assignedRoom]) => assignedRoom === room);
-    if (!['ppa', 'mpp', 'admin'].includes(role)) {
+    if (!['ppa', 'mpp', 'admin', 'admisi'].includes(role)) {
       await supabase.auth.signOut();
+      gate?.classList.remove('d-none');
       app.setAlert('authAlert', 'Akun belum memiliki role ppa atau mpp. Hubungi administrator Supabase.');
       return;
     }
     if (role === 'mpp' && !['PRIYO', 'ARUM'].includes(mppTarget)) {
       await supabase.auth.signOut();
+      gate?.classList.remove('d-none');
       app.setAlert('authAlert', 'Akun MPP memerlukan app_metadata.mpp_tujuan PRIYO atau ARUM.');
       return;
     }
     if (role === 'ppa' && (!profile || session.user.email?.toLowerCase() !== accountEmail(profile[0]))) {
       await supabase.auth.signOut();
+      gate?.classList.remove('d-none');
       app.setAlert('authAlert', 'Akun ruangan belum memiliki app_metadata.room yang cocok. Atur metadata sesuai ruangan akun di Supabase.');
       return;
     }
+    if (role === 'admisi' && (room !== 'IGD' || session.user.email?.toLowerCase() !== accountEmail('admisi'))) {
+      await supabase.auth.signOut();
+      gate?.classList.remove('d-none');
+      app.setAlert('authAlert', 'Akun Admisi harus menggunakan email admisi@mppcare.invalid dan app_metadata.room IGD.');
+      return;
+    }
+    if (role === 'admisi' && window.location.pathname !== '/') {
+      window.location.replace('/?view=view-igd');
+      return;
+    }
+    if (role === 'admisi' && window.location.pathname !== '/') {
+      window.location.replace('/?view=view-igd');
+      return;
+    }
 
-    app.state = { role, user: session.user, room: role === 'ppa' ? room : null, mppTarget: role === 'mpp' ? mppTarget : null, activations: [] };
+    app.state = { role, user: session.user, room: ['ppa', 'admisi'].includes(role) ? room : null, mppTarget: role === 'mpp' ? mppTarget : null, activations: [] };
     window.currentMppcareRole = role;
+    if (role === 'admisi') window.switchView?.('view-igd', document.querySelector('[data-role="admisi"] .nav-link'));
     gate?.classList.add('d-none');
     shell?.classList.remove('d-none');
     updateNavigation(role);
     document.getElementById('userEmail').textContent = room || (role === 'mpp' ? `MPP ${mppTarget}` : session.user.email || '');
     window.dispatchEvent(new CustomEvent('mppcare:session-ready', { detail: { role, user: session.user } }));
 
-    await Promise.all([
-      app.loadFragment('view-form-ppa', 'form-ppa.html'),
-      app.loadFragment('view-tindak-lanjut', 'tindak-lanjut-mpp.html'),
-      app.loadFragment('view-form-a', 'form-a.html')
-    ]);
+    if (role !== 'admisi') {
+      await Promise.all([
+        app.loadFragment('view-form-ppa', 'form-ppa.html'),
+        app.loadFragment('view-tindak-lanjut', 'tindak-lanjut-mpp.html'),
+        app.loadFragment('view-form-a', 'form-a.html')
+      ]);
+    }
     Object.values(app.modules).forEach((module) => module.mount?.({ role, user: session.user, app }));
+    const initialView = role === 'admisi' ? 'view-igd' : new URLSearchParams(window.location.search).get('view');
+    if (initialView) window.switchView?.(initialView, document.querySelector(`[href="/?view=${initialView}"]`));
+    if (window.location.hash === '#view-tindak-lanjut') {
+      document.getElementById('view-tindak-lanjut')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     document.getElementById('logoutButton').onclick = () => supabase.auth.signOut();
     await app.refreshData();
   }

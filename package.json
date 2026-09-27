@@ -15,6 +15,7 @@
     "pg": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "react-hot-toast": "^2.6.1",
     "recharts": "^3.10.1"
   }
 }

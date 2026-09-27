@@ -540,6 +540,91 @@ def send_batch(url, key, table, records, conflict):
         raise RuntimeError(f"Gagal menghubungi Supabase: {error.reason}") from error
 
 
+def fetch_existing_records(url, key, table, columns):
+    page_size = 500
+    offset = 0
+    records = []
+    selected_columns = urllib.parse.quote(",".join(sorted(columns)), safe=",")
+    endpoint = f"{url}/rest/v1/{urllib.parse.quote(table)}?select={selected_columns}"
+
+    while True:
+        request = urllib.request.Request(
+            endpoint,
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Range-Unit": "items",
+                "Range": f"{offset}-{offset + page_size - 1}",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                batch = json.loads(response.read().decode("utf-8"))
+                content_range = response.headers.get("Content-Range", "")
+        except urllib.error.HTTPError as error:
+            detail = error.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Gagal membaca data yang sudah ada ({error.code}): {detail}") from error
+        except urllib.error.URLError as error:
+            raise RuntimeError(f"Gagal menghubungi Supabase: {error.reason}") from error
+
+        records.extend(batch)
+        offset += len(batch)
+        total = content_range.rsplit("/", 1)[-1]
+        if not batch or len(batch) < page_size or (total.isdigit() and offset >= int(total)):
+            return records
+
+
+def normalize_monitoring_value(column, value):
+    if value is None or not str(value).strip():
+        return None
+    value = str(value).strip()
+
+    if column in {"tanggal", "tanggal_pindah"}:
+        if re.fullmatch(r"\d{1,2}[/-]\d{1,2}[/-]\d{4}", value):
+            day, month, year = re.split(r"[/-]", value)
+            return dt.date(int(year), int(month), int(day)).isoformat()
+        return dt.date.fromisoformat(value[:10]).isoformat()
+
+    if column in {"jam_inden", "jam_daftar", "jam_pindah"}:
+        match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?", value)
+        if not match:
+            raise ValueError(f"Format waktu pada kolom {column} tidak dikenali.")
+        hour, minute, second = (int(part or 0) for part in match.groups())
+        return dt.time(hour, minute, second).isoformat()
+
+    return value
+
+
+def monitoring_signature(record, columns):
+    return tuple(
+        (column, normalize_monitoring_value(column, record.get(column)))
+        for column in sorted(columns)
+    )
+
+
+def exclude_existing_monitoring_records(url, key, records, columns):
+    existing_records = fetch_existing_records(url, key, "monitoring_igd", columns)
+    existing_signatures = {
+        monitoring_signature(record, columns) for record in existing_records
+    }
+    seen_signatures = set()
+    new_records = []
+    existing_duplicates = 0
+    file_duplicates = 0
+
+    for record in records:
+        signature = monitoring_signature(record, columns)
+        if signature in existing_signatures:
+            existing_duplicates += 1
+        elif signature in seen_signatures:
+            file_duplicates += 1
+        else:
+            seen_signatures.add(signature)
+            new_records.append(record)
+
+    return new_records, existing_duplicates, file_duplicates
+
+
 def send_records(url, key, table, records, conflict, batch_size):
     records_by_columns = {}
     for record in records:
@@ -654,9 +739,21 @@ def main():
         mapping = make_mapping(headers, args.table, parse_mapping_args(args.map))
         records = convert_rows(source_rows, mapping, args.empty_as_null)
         validate_records(records, args.table)
+        url = key = None
+        existing_duplicates = 0
+        file_duplicates = 0
+        if args.table == "monitoring_igd":
+            url, key = get_config()
+            records, existing_duplicates, file_duplicates = exclude_existing_monitoring_records(
+                url, key, records, set(mapping.values())
+            )
         print(f"File: {Path(args.csv).resolve()}")
         print(f"Tabel: public.{args.table}")
         print(f"Baris CSV: {len(source_rows)} | Baris siap: {len(records)}")
+        if args.table == "monitoring_igd":
+            print(f"Duplikat dengan data database, dilewati: {existing_duplicates}")
+            print(f"Duplikat berulang di CSV, dilewati: {file_duplicates}")
+            print(f"Baris baru yang akan diimpor: {len(records)}")
         print("Pemetaan:")
         for source, target in mapping.items():
             print(f"  {source} -> {target}")
@@ -667,9 +764,11 @@ def main():
             print("\nPREVIEW SAJA: tidak ada data dikirim. Tambahkan --confirm setelah memeriksa pemetaan dan contoh.")
             return 0
         if not records:
-            raise ValueError("Tidak ada baris data yang siap diimpor.")
+            print("Tidak ada baris baru untuk diimpor.")
+            return 0
 
-        url, key = get_config()
+        if url is None or key is None:
+            url, key = get_config()
         send_records(url, key, args.table, records, args.on_conflict, args.batch_size)
         print("Impor selesai.")
         return 0

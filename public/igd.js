@@ -3,7 +3,10 @@
   if (!supabase) throw new Error('Supabase client belum siap untuk modul IGD.');
   const criticalAlarm = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3');
 
-  const columns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input';
+  const columns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input,status_bed,bed_ready_at';
+  const bedStatuses = ['Menunggu Cleaning Service', 'Menunggu Linen/Alat', 'Kamar Siap - Menunggu Transpor'];
+  const readyBedStatus = bedStatuses[2];
+  const defaultBedStatus = bedStatuses[0];
   let records = [];
   let filter = 'inden';
   let mode = 'tabel';
@@ -14,6 +17,9 @@
   let heatmapTimer = null;
   let tvRefreshTimer = null;
   let lastCriticalCount = 0;
+  let bangsal = '';
+  let statusBedSchemaReady = true;
+  let migrationWarningShown = false;
 
   const byId = (id) => document.getElementById(id);
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -26,6 +32,15 @@
   const dateText = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('id-ID') : '-';
   const timeText = (value) => value ? String(value).slice(0, 5) : '-';
   const text = (id) => byId(id)?.value?.trim() || '';
+  const normalizeBangsal = (value) => String(value || '').trim().toUpperCase().replace(/\s+/g, '').replace(/\//g, ',');
+
+  function notify(message, type = 'success') {
+    window.dispatchEvent(new CustomEvent('mppcare:toast', { detail: { message, type } }));
+  }
+
+  function canManageBedStatus(row) {
+    return role === 'admin' || (role === 'ppa' && normalizeBangsal(bangsal) === normalizeBangsal(row.inden_bangsal));
+  }
 
   function alertStage(id, message, type = 'success') {
     const target = byId(id);
@@ -47,7 +62,11 @@
     const startTime = String(row.jam_inden || row.jam_daftar || '00:00').slice(0, 5);
     const startAt = new Date(`${row.tanggal}T${startTime}:00`);
     const endTime = endAt instanceof Date ? null : String(endAt.time || '00:00').slice(0, 5);
-    const end = endAt instanceof Date ? endAt : new Date(`${endAt.date}T${endTime}:00`);
+    let end = endAt instanceof Date ? endAt : new Date(`${endAt.date}T${endTime}:00`);
+    if (row.bed_ready_at) {
+      const readyAt = new Date(row.bed_ready_at);
+      if (!Number.isNaN(readyAt.getTime()) && readyAt < end) end = readyAt;
+    }
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(end.getTime())) return 0;
     return Math.max(0, Math.floor((end.getTime() - startAt.getTime()) / 60000));
   }
@@ -62,22 +81,45 @@
     return { label, badge: 'bg-success', row: 'table-warning', hours };
   }
 
+  function slaRowClass(row) {
+    const bedStatus = String(row.status_bed || row.status || '').trim().toLowerCase();
+    if (row.bangsal_tujuan || bedStatus === 'siap' || bedStatus === readyBedStatus.toLowerCase() || !row.waktu_input) return '';
+    const startedAt = new Date(row.waktu_input).getTime();
+    if (!Number.isFinite(startedAt)) return '';
+    const minutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
+    return minutes < 15 ? 'sla-under-15' : minutes <= 30 ? 'sla-between-15-30' : 'sla-over-30';
+  }
+
   function filteredRecords() {
     if (filter === 'pindah') return records.filter((row) => Boolean(row.bangsal_tujuan));
-    if (filter === 'kritis') return records.filter((row) => !row.bangsal_tujuan && elapsed(row) >= 240);
+    if (filter === 'kritis') return records.filter((row) => !row.bangsal_tujuan
+      && row.status_bed !== readyBedStatus && elapsed(row) >= 240);
     return records.filter((row) => !row.bangsal_tujuan);
   }
 
   async function refresh() {
     const tbody = byId('tabelMonitorIgd');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">Menyinkronkan data IGD...</td></tr>';
-    const { data, error } = await supabase.from('monitoring_igd').select(columns)
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">Menyinkronkan data IGD...</td></tr>';
+    let result = await supabase.from('monitoring_igd').select(columns)
       .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
+    if (result.error && /status_bed|bed_ready_at/i.test(result.error.message)) {
+      statusBedSchemaReady = false;
+      if (!migrationWarningShown) {
+        migrationWarningShown = true;
+        notify('Jalankan supabase-mpp-migration.sql untuk mengaktifkan status bed.', 'error');
+      }
+      const legacyColumns = columns.split(',').filter((column) => !['status_bed', 'bed_ready_at'].includes(column)).join(',');
+      result = await supabase.from('monitoring_igd').select(legacyColumns)
+        .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
+    } else if (!result.error) {
+      statusBedSchemaReady = true;
+    }
+    const { data, error } = result;
     if (error) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Gagal memuat data: ${escapeHtml(error.message)}</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="10" class="text-center text-danger py-4">Gagal memuat data: ${escapeHtml(error.message)}</td></tr>`;
       return;
     }
-    records = data || [];
+    records = (data || []).map((row) => ({ ...row, status_bed: row.status_bed || defaultBedStatus }));
     window.dataIgdLokal = records;
     populatePatientSelects();
     updateStatistics();
@@ -89,6 +131,8 @@
     }, 60000);
     checkCriticalAlarm();
   }
+
+  window.refreshIgdData = refresh;
 
   function populatePatientSelects(selectedId) {
     const pending = records.filter((row) => !row.bangsal_tujuan);
@@ -137,7 +181,9 @@
   }
 
   function checkCriticalAlarm() {
-    const criticalCount = records.filter((row) => !row.bangsal_tujuan && elapsed(row) >= 240).length;
+    const criticalCount = records.filter((row) => !row.bangsal_tujuan
+      && String(row.status_bed || '').toLowerCase() !== readyBedStatus.toLowerCase()
+      && elapsed(row) >= 240).length;
     if (tvActive && criticalCount > lastCriticalCount) {
       criticalAlarm.currentTime = 0;
       criticalAlarm.play().catch(() => {});
@@ -156,17 +202,27 @@
   function renderTable(rows) {
     const body = byId('tabelMonitorIgd');
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="9" class="text-center text-muted fw-bold py-4">Tidak ada data pasien pada filter ini.</td></tr>';
+      body.innerHTML = '<tr><td colspan="10" class="text-center text-muted fw-bold py-4">Tidak ada data pasien pada filter ini.</td></tr>';
       return;
     }
     body.innerHTML = rows.map((row, index) => {
       const stage = getStage(row);
-      const info = durationInfo(elapsed(row), stage === 'pindah');
+      const bedIsReady = row.status_bed === readyBedStatus;
+      const info = durationInfo(bedIsReady ? 0 : elapsed(row), stage === 'pindah' || bedIsReady);
+      const bedStatus = bedStatuses.includes(row.status_bed) ? row.status_bed : defaultBedStatus;
       const status = row.bangsal_tujuan
         ? `<span class="badge bg-success d-block mb-1">Pindah: ${escapeHtml(row.bangsal_tujuan)}</span><small>${dateText(row.tanggal_pindah)} (${timeText(row.jam_pindah)})</small>`
-        : `<span class="badge ${info.badge}">${info.hours >= 4 ? 'Kritis · ' : 'Inden · '}${info.label}</span>`;
+        : bedIsReady
+          ? `<span class="badge bg-success">${escapeHtml(readyBedStatus)}</span>`
+          : `<span class="badge ${info.badge}">${info.hours >= 4 ? 'Kritis · ' : 'Inden · '}${info.label}</span>`;
+      const bedStatusCell = canManageBedStatus(row) && !row.bangsal_tujuan && statusBedSchemaReady
+        ? `<div class="bed-status-control"><select class="form-select form-select-sm" data-bed-status aria-label="Status bed untuk ${escapeHtml(row.nama_pasien)}">${bedStatuses.map((value) => `<option value="${value}" ${value === bedStatus ? 'selected' : ''}>${value}</option>`).join('')}</select><div class="bed-status-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-action="save-bed-status" data-id="${escapeHtml(row.id)}">Simpan Status</button><button type="button" class="btn btn-sm btn-success" data-action="mark-bed-ready" data-id="${escapeHtml(row.id)}" ${bedStatus === readyBedStatus ? 'disabled' : ''}>Tandai Kamar Siap</button></div></div>`
+        : `<span class="badge ${bedStatus === readyBedStatus ? 'bg-success' : 'bg-secondary'}">${escapeHtml(statusBedSchemaReady ? bedStatus : 'Migrasi status bed diperlukan')}</span>`;
       const mppNotes = [row.koordinasi_kepala_ruang && `Ka. Ruang: ${row.koordinasi_kepala_ruang}`, row.koordinasi_dpjp && `DPJP: ${row.koordinasi_dpjp}`, row.koordinasi_ibs && `IBS: ${row.koordinasi_ibs}`, row.koordinasi_lab && `Lab: ${row.koordinasi_lab}`, row.koordinasi_radiologi && `Radiologi: ${row.koordinasi_radiologi}`].filter(Boolean).join(' · ') || '-';
-      return `<tr class="${info.row}"><td class="text-center fw-bold">${index + 1}</td><td>${dateText(row.tanggal)}<br><strong>${escapeHtml(row.no_rm)}</strong></td><td class="fw-bold">${escapeHtml(row.nama_pasien)}</td><td><span class="badge bg-secondary">${escapeHtml(row.jaminan || '-')}</span><br><small>IC: ${escapeHtml(row.informed_consent || '-')}</small></td><td><strong class="d-block">${escapeHtml(row.inden_bangsal || '-')}</strong><small>Jam: ${timeText(row.jam_inden || row.jam_daftar)}</small><br>${status}</td><td><small class="d-block">Bed: <b>${escapeHtml(row.nomor_bed || '-')}</b></small><small>DPJP: <b>${escapeHtml(row.nama_dpjp || '-')}</b></small></td><td><small>${escapeHtml(mppNotes)}</small><br><button type="button" class="btn btn-sm btn-outline-info mt-1" data-action="details" data-id="${row.id}">Detail</button></td><td><small class="text-danger fw-bold">${escapeHtml(row.akar_masalah || '-')}</small></td><td class="igd-row-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${row.id}" title="Edit"><i class="fas fa-edit"></i></button><button type="button" class="btn btn-sm btn-outline-success" data-action="wa" data-id="${row.id}" title="WhatsApp"><i class="fab fa-whatsapp"></i></button><button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.id}" title="Hapus"><i class="fas fa-trash-alt"></i></button></td></tr>`;
+      const actions = role === 'admisi'
+        ? '<span class="small text-muted">Monitor</span>'
+        : `<button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit"><i class="fas fa-edit"></i></button><button type="button" class="btn btn-sm btn-outline-success" data-action="wa" data-id="${escapeHtml(row.id)}" title="WhatsApp"><i class="fab fa-whatsapp"></i></button><button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${escapeHtml(row.id)}" title="Hapus"><i class="fas fa-trash-alt"></i></button>`;
+      return `<tr data-igd-id="${escapeHtml(row.id)}" class="${info.row} ${slaRowClass(row)}"><td class="text-center fw-bold">${index + 1}</td><td>${dateText(row.tanggal)}<br><strong>${escapeHtml(row.no_rm)}</strong></td><td class="fw-bold">${escapeHtml(row.nama_pasien)}</td><td><span class="badge bg-secondary">${escapeHtml(row.jaminan || '-')}</span><br><small>IC: ${escapeHtml(row.informed_consent || '-')}</small></td><td><strong class="d-block">${escapeHtml(row.inden_bangsal || '-')}</strong><small>Jam: ${timeText(row.jam_inden || row.jam_daftar)}</small><br>${status}</td><td>${bedStatusCell}</td><td><small class="d-block">Bed: <b>${escapeHtml(row.nomor_bed || '-')}</b></small><small>DPJP: <b>${escapeHtml(row.nama_dpjp || '-')}</b></small></td><td><small>${escapeHtml(mppNotes)}</small><br><button type="button" class="btn btn-sm btn-outline-info mt-1" data-action="details" data-id="${escapeHtml(row.id)}">Detail</button></td><td><small class="text-danger fw-bold">${escapeHtml(row.akar_masalah || '-')}</small></td><td class="igd-row-actions">${actions}</td></tr>`;
     }).join('');
   }
 
@@ -212,7 +268,28 @@
     root.addEventListener('drop', handleDrop);
     root.querySelectorAll('[data-filter]').forEach((button) => button.addEventListener('click', () => setFilter(button.dataset.filter)));
     root.querySelectorAll('[data-mode]').forEach((button) => button.addEventListener('click', () => setMode(button.dataset.mode)));
+    if (role === 'admisi') {
+      root.classList.add('admisi-view');
+      ['btnToggleBencana', 'btnTvMode', 'btnModeKanban'].forEach((id) => byId(id)?.classList.add('d-none'));
+      root.querySelectorAll('[data-action="report-whatsapp"], [data-action="share-disaster"]').forEach((button) => button.classList.add('d-none'));
+    }
+    byId('igdPindahManualToggle').addEventListener('change', (event) => setManualTransferMode(event.target.checked));
+    setManualTransferMode(false);
     byId('igdTanggal').value = today();
+  }
+
+  function setManualTransferMode(enabled) {
+    const fields = byId('igdPindahManualFields');
+    const dateInput = byId('igdTanggalPindahManual');
+    const timeInput = byId('igdJamPindahManual');
+    fields.classList.toggle('d-none', !enabled);
+    dateInput.required = enabled;
+    timeInput.required = enabled;
+    if (enabled) {
+      const now = new Date();
+      if (!dateInput.value) dateInput.value = today();
+      if (!timeInput.value) timeInput.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
   }
 
   async function mount() {
@@ -233,8 +310,11 @@
 
   function handleSession(event) {
     role = event.detail?.role || null;
+    const user = event.detail?.user || window.MPPCare?.state?.user;
+    bangsal = window.MPPCare?.state?.room || window.MPPCare?.getUserRoom?.(user) || user?.app_metadata?.room || '';
     if (role) mount();
     else {
+      deactivateTvMode();
       initialized = false;
       if (heatmapTimer) window.clearInterval(heatmapTimer);
       heatmapTimer = null;
@@ -253,6 +333,7 @@
   }
 
   function setMode(value) {
+    if (role === 'admisi' && value !== 'tabel') return;
     mode = value;
     byId('tabelMonitorIgdContainer').classList.toggle('d-none', value !== 'tabel');
     byId('kanbanContainer').classList.toggle('d-none', value !== 'kanban');
@@ -278,6 +359,7 @@
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const action = button.dataset.action;
+    if (role === 'admisi' && ['toggle-disaster', 'share-disaster', 'report-whatsapp', 'toggle-tv', 'edit', 'delete', 'wa', 'save-bed-status', 'mark-bed-ready'].includes(action)) return;
     const row = records.find((item) => item.id === button.dataset.id);
     if (action === 'toggle-disaster') setDisaster(!disasterActive);
     if (action === 'share-disaster') openWhatsApp('🚨 PANGGILAN CODE YELLOW / ORANGE - RS 🚨\n\nTerjadi lonjakan pasien stagnan di IGD. Mohon percepatan koordinasi pemindahan bed.\n\nSistem MPPCare');
@@ -289,7 +371,43 @@
     if (action === 'delete' && row) deleteRecord(row);
     if (action === 'wa' && row) reportRoom(row);
     if (action === 'details' && row) showDetails(row);
+    if (action === 'save-bed-status' && row) updateBedStatus(row, button);
+    if (action === 'mark-bed-ready' && row) updateBedStatus(row, button, readyBedStatus);
     if (action === 'cancel-edit') cancelEdit();
+  }
+
+  async function updateBedStatus(row, button, requestedStatus) {
+    if (!canManageBedStatus(row)) {
+      notify('Status bed hanya dapat diperbarui oleh petugas bangsal tujuan.', 'error');
+      return;
+    }
+    if (!statusBedSchemaReady) {
+      notify('Jalankan supabase-mpp-migration.sql sebelum menyimpan status bed.', 'error');
+      return;
+    }
+    const tableRow = button.closest('tr');
+    const select = tableRow?.querySelector('[data-bed-status]');
+    const nextStatus = requestedStatus || select?.value;
+    if (!bedStatuses.includes(nextStatus)) return;
+    const readyAt = nextStatus === readyBedStatus ? new Date().toISOString() : null;
+    const controls = tableRow.querySelectorAll('button');
+    controls.forEach((control) => { control.disabled = true; });
+    try {
+      const { error } = await supabase.from('monitoring_igd')
+        .update({ status_bed: nextStatus, bed_ready_at: readyAt }).eq('id', row.id);
+      if (error) throw error;
+      row.status_bed = nextStatus;
+      row.bed_ready_at = readyAt;
+      const localRow = records.find((record) => record.id === row.id);
+      if (localRow) Object.assign(localRow, { status_bed: nextStatus, bed_ready_at: readyAt });
+      const sharedRow = (window.dataIgdLokal || []).find((record) => record.id === row.id);
+      if (sharedRow) Object.assign(sharedRow, { status_bed: nextStatus, bed_ready_at: readyAt });
+      notify(`Status bed ${row.nama_pasien}: ${nextStatus}`);
+      await refresh();
+    } catch (error) {
+      notify(`Status bed gagal disimpan: ${error.message}`, 'error');
+      controls.forEach((control) => { control.disabled = false; });
+    }
   }
 
   async function saveStage(stage, event) {
@@ -301,6 +419,7 @@
       let error;
       if (stage === 1) {
         const id = text('igdIdEditLokal');
+        if (role === 'admisi' && id) throw new Error('Akun Admisi IGD hanya dapat mendaftarkan pasien baru.');
         const row = {
           tanggal: text('igdTanggal'), no_rm: text('igdNoRM'), nama_pasien: text('igdNamaPasien'),
           informed_consent: text('igdInformedConsent'), inden_bangsal: text('igdIndenBangsal'),
@@ -325,6 +444,12 @@
         form.reset();
         byId('igdTanggal').value = today();
       }
+      if (stage === 4) {
+        byId('igdPindahManualToggle').checked = false;
+        setManualTransferMode(false);
+        byId('igdTanggalPindahManual').value = '';
+        byId('igdJamPindahManual').value = '';
+      }
       await refresh();
     } catch (error) {
       alertStage(`alertTahap${stage}`, `Gagal menyimpan: ${error.message}`, 'danger');
@@ -336,15 +461,31 @@
   function makeTransferUpdate(id) {
     const row = records.find((item) => item.id === id);
     const now = new Date();
-    const date = today();
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+    const manual = byId('igdPindahManualToggle').checked;
+    const date = manual ? text('igdTanggalPindahManual') : today();
+    const time = manual
+      ? text('igdJamPindahManual')
+      : `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+    if (!date || !time) throw new Error('Isi tanggal dan jam pindah manual terlebih dahulu.');
+    const transferAt = new Date(`${date}T${time.length === 5 ? `${time}:00` : time}`);
+    if (Number.isNaN(transferAt.getTime())) throw new Error('Tanggal atau jam pindah tidak valid.');
+    if (transferAt > now) throw new Error('Tanggal dan jam pindah tidak boleh di masa depan.');
+    const startedAt = parseTransferStart(row);
+    if (startedAt && transferAt < startedAt) throw new Error('Waktu pindah tidak boleh sebelum pasien mulai menunggu bangsal.');
     return {
       bangsal_tujuan: text('igdPindahBangsal'),
       tanggal_pindah: date,
       jam_pindah: time,
-      waktu_tunggu: formatDuration(elapsed(row, now)),
+      waktu_tunggu: formatDuration(elapsed(row, transferAt)),
       akar_masalah: row?.akar_masalah || null
     };
+  }
+
+  function parseTransferStart(row) {
+    if (!row?.tanggal) return null;
+    const time = String(row.jam_inden || row.jam_daftar || '00:00').slice(0, 5);
+    const startedAt = new Date(`${row.tanggal}T${time}:00`);
+    return Number.isNaN(startedAt.getTime()) ? null : startedAt;
   }
 
   function formatDuration(minutes) {
@@ -467,21 +608,35 @@
   }
 
   function toggleTv() {
-    tvActive = !tvActive;
-    const root = document.querySelector('.igd-module');
-    root.classList.toggle('igd-tv-mode', tvActive);
-    byId('btnTvMode').innerHTML = tvActive ? '<i class="fas fa-compress me-1"></i>Keluar TV' : '<i class="fas fa-tv me-1"></i>Mode TV Monitor';
     if (tvActive) {
-      lastCriticalCount = records.filter((row) => !row.bangsal_tujuan && elapsed(row) >= 240).length;
-      document.documentElement.requestFullscreen?.().catch(() => {});
-      tvRefreshTimer = window.setInterval(refresh, 60000);
-    } else {
+      deactivateTvMode();
       if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
-      if (tvRefreshTimer) window.clearInterval(tvRefreshTimer);
-      tvRefreshTimer = null;
+      return;
     }
+
+    tvActive = true;
+    document.body.classList.add('tv-monitor-active');
+    byId('igd-module')?.classList.add('igd-tv-mode');
+    byId('btnTvMode').innerHTML = '<i class="fas fa-compress me-1"></i>Keluar TV';
+    lastCriticalCount = records.filter((row) => !row.bangsal_tujuan && elapsed(row) >= 240).length;
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    tvRefreshTimer = window.setInterval(refresh, 60000);
   }
 
+  function deactivateTvMode() {
+    tvActive = false;
+    document.body.classList.remove('tv-monitor-active');
+    byId('igd-module')?.classList.remove('igd-tv-mode');
+    if (byId('btnTvMode')) byId('btnTvMode').innerHTML = '<i class="fas fa-tv me-1"></i>Mode TV Monitor';
+    if (tvRefreshTimer) window.clearInterval(tvRefreshTimer);
+    tvRefreshTimer = null;
+  }
+
+  function handleFullscreenChange() {
+    if (tvActive && !document.fullscreenElement) deactivateTvMode();
+  }
+
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
   window.addEventListener('mppcare:session-ready', handleSession);
   if (window.currentMppcareRole) {
     role = window.currentMppcareRole;
