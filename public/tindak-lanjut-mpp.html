@@ -1,0 +1,54 @@
+<div class="card bg-white shadow-sm border-top border-warning border-4 p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-warning pb-3 flex-wrap gap-3">
+    <h4 class="fw-bold text-warning mb-0"><i class="fas fa-stethoscope me-2"></i>Ruang Kerja Tindak Lanjut MPP</h4>
+    <span id="mppNamaAkun" class="badge text-bg-warning">Petugas MPP</span>
+  </div>
+
+  <div class="alert alert-warning text-dark fw-bold shadow-sm border-warning">
+    <label for="selectPasienMPP" class="form-label text-danger"><i class="fas fa-bell me-1"></i>Pilih Laporan Pasien yang Belum Ditangani:</label>
+    <select id="selectPasienMPP" class="form-select border-danger fw-bold text-primary fs-5" required>
+      <option value="">-- Sedang Menarik Data Laporan PPA... --</option>
+    </select>
+  </div>
+
+  <form id="formMPP">
+    <input type="hidden" id="mppIdUnik">
+    <input type="hidden" id="mppAsalSheet" value="aktivasi_mpp">
+    <div class="p-4 border-start border-5 border-warning bg-light rounded shadow-sm mt-4">
+      <h5 class="fw-bold mb-3 text-warning">Pengisian Tindak Lanjut</h5>
+      <div class="row">
+        <div class="col-md-6 mb-3"><label for="mppTanggalTL" class="form-label fw-semibold text-dark">Tanggal di TL MPP</label><input type="date" id="mppTanggalTL" class="form-control border-warning" required></div>
+        <div class="col-md-6 mb-3"><label for="mppNamaPetugas" class="form-label fw-semibold text-dark">Nama MPP Penanggung Jawab</label><input type="text" id="mppNamaPetugas" class="form-control border-warning bg-white fw-bold text-danger" readonly required></div>
+        <div class="col-12 mb-3 mt-2 p-3 border border-warning rounded bg-white shadow-sm">
+          <label for="mppAnalisisInformasi" class="form-label fw-bold text-danger"><i class="fas fa-clipboard-check me-2"></i>Analisis Informasi <small class="text-muted">(Bisa pilih lebih dari satu, tekan Ctrl / Cmd)</small></label>
+          <select id="mppAnalisisInformasi" class="form-select border-warning fw-bold text-dark" multiple size="7" required>
+            <option value="1. Usia">1. Usia</option>
+            <option value="2. Pasien dengan risiko tinggi">2. Pasien dengan risiko tinggi</option>
+            <option value="3. Potensi komplain tinggi">3. Potensi komplain tinggi</option>
+            <option value="4. Kasus dengan penyakit kronis, katastropik, terminal">4. Kasus dengan penyakit kronis, katastropik, terminal</option>
+            <option value="5. Status fungsional rendah, kebutuhan Activity Daily Living (ADL) yang tinggi">5. Status fungsional rendah, kebutuhan Activity Daily Living (ADL) yang tinggi</option>
+            <option value="6. Pasien dengan riwayat penggunaan peralatan medis di masa lalu">6. Pasien dengan riwayat penggunaan peralatan medis di masa lalu</option>
+            <option value="7. Riwayat gangguan mental, upaya bunuh diri, krisis keluarga, isu sosial, dll">7. Riwayat gangguan mental, upaya bunuh diri, krisis keluarga, isu sosial, dll</option>
+            <option value="8. Sering masuk IGD, readmisi rumah sakit">8. Sering masuk IGD, readmisi rumah sakit</option>
+            <option value="9. Perkiraan asuhan dengan biaya tinggi">9. Perkiraan asuhan dengan biaya tinggi</option>
+            <option value="10. Kemungkinan sistem pembiayaan yang kompleks, adanya masalah finansial">10. Kemungkinan sistem pembiayaan yang kompleks, adanya masalah finansial</option>
+            <option value="11. Kasus yang melebihi rata-rata lama dirawat">11. Kasus yang melebihi rata-rata lama dirawat</option>
+            <option value="12. Kasus yang diidentifikasi rencana pemulangannya berisiko, membutuhkan kontinuitas pelayanan">12. Kasus yang diidentifikasi rencana pemulangannya berisiko, membutuhkan kontinuitas pelayanan</option>
+            <option value="13. Pelecehan orang dewasa lemah, pelecehan anak, atau korban kejahatan kekerasan">13. Pelecehan orang dewasa lemah, pelecehan anak, atau korban kejahatan kekerasan</option>
+            <option value="14. Pelecehan seksual">14. Pelecehan seksual</option>
+            <option value="15. Kekerasan dalam rumah tangga">15. Kekerasan dalam rumah tangga</option>
+            <option value="16. Overdosis">16. Overdosis</option>
+            <option value="17. Kehamilan remaja">17. Kehamilan remaja</option>
+            <option value="18. Pembiayaan pasien melebihi batas tarif / Tidak ada sistem dukungan sosial">18. Pembiayaan pasien melebihi batas tarif / Tidak ada sistem dukungan sosial</option>
+            <option value="19. Tuna wisma">19. Tuna wisma</option>
+            <option value="20. Penumpukan pasien di IGD">20. Penumpukan pasien di IGD</option>
+          </select>
+        </div>
+        <div class="col-12 mb-3"><label for="mppPlanOfCare" class="form-label fw-semibold text-dark">Plan of Care MPP</label><textarea id="mppPlanOfCare" class="form-control border-warning" rows="3" placeholder="Contoh: KOORDINASI, FASILITASI, EDUKASI, MONITORING" required></textarea></div>
+        <div class="col-12 mb-2"><label for="mppKeterangan" class="form-label fw-semibold text-dark">Keterangan Tambahan / Status Aktual</label><input type="text" id="mppKeterangan" class="form-control border-warning" placeholder="Contoh: PASIEN SUDAH PINDAH BANGSAL / KELUARGA SUDAH BELI KORSET" required></div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-warning w-100 fw-bold text-dark py-3 mt-4 fs-5 shadow-sm" id="btnSimpanMPP"><i class="fas fa-save me-2"></i>Simpan Tindak Lanjut MPP</button>
+    <div id="alertMPP" class="alert mt-3 d-none text-center fw-bold fs-6" role="status"></div>
+  </form>
+</div>

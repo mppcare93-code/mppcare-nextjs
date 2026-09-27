@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#123d36">
+  <title>Sistem Informasi MPPCare - RSUD Merah Putih</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <section id="authGate" class="auth-gate" aria-labelledby="loginTitle">
+    <form id="loginForm" class="auth-panel">
+      <span class="brand-mark">MPP</span>
+      <p class="eyebrow">RSUD MERAH PUTIH</p>
+      <h1 id="loginTitle">Masuk ke MPPCare</h1>
+      <p class="auth-copy">Gunakan akun Supabase yang telah diberi role PPA atau MPP.</p>
+      <div id="authAlert" class="alert d-none" role="alert"></div>
+      <label>Email<input id="loginEmail" class="form-control" type="email" autocomplete="username" required></label>
+      <label>Password<input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required></label>
+      <button id="loginSubmit" class="btn btn-success w-100" type="submit">Masuk</button>
+    </form>
+  </section>
+
+  <div class="app-shell d-none d-flex">
+    <nav id="sidebar" class="text-white" aria-label="Navigasi utama">
+      <div class="sidebar-header border-bottom border-warning border-3 p-4 text-center">
+        <div class="d-flex justify-content-center align-items-center">
+          <img src="https://i.ibb.co.com/Q3t8KyGV/logo.png" alt="Logo RS" class="me-3 drop-shadow sidebar-logo">
+          <div class="text-start"><h3 class="mb-0 fw-bold text-white"><span class="text-warning">MPP</span></h3><h5 class="mb-0 fw-bold text-white">Care</h5></div>
+        </div>
+      </div>
+      <ul class="list-unstyled components mt-3">
+        <li data-dashboard-nav><button class="nav-link active" type="button" onclick="switchView('view-dashboard', this)"><i class="fas fa-chart-pie"></i>Dashboard</button></li>
+        <li data-role="ppa,admin"><button class="nav-link" type="button" onclick="switchView('view-form-ppa', this)"><i class="fas fa-file-medical"></i>Form Aktivasi PPA</button></li>
+        <li data-role="mpp,admin"><button class="nav-link text-warning fw-bold" type="button" onclick="switchView('view-tindak-lanjut', this)"><i class="fas fa-user-md"></i>Tindak Lanjut MPP <i class="fas fa-lock ms-2 small"></i></button></li>
+        <li data-role="mpp,admin"><button class="nav-link text-info fw-bold" type="button" onclick="switchView('view-form-a', this)"><i class="fas fa-print"></i>Cetak Form A (MPP)</button></li>
+        <li data-role="ppa,mpp,admin"><button class="nav-link" type="button" onclick="switchView('view-igd', this)"><i class="fas fa-ambulance"></i>Koordinasi Stagnasi IGD</button></li>
+      </ul>
+      <div class="mt-auto p-3 text-center border-top border-danger sidebar-developer"><small class="text-white-50 fw-bold">Developed by</small><br><span class="text-white fw-bold">Daniel Ari Kristianto</span></div>
+    </nav>
+
+    <div id="content">
+      <div class="top-navbar bg-white shadow-sm border-bottom border-primary">
+        <button type="button" class="btn btn-outline-primary border-0 fs-4" id="sidebarCollapse" aria-label="Toggle sidebar"><i class="fas fa-bars"></i></button>
+        <h5 class="mb-0 fw-bold text-primary">Sistem Informasi MPP <span class="text-dark">RSUD Merah Putih</span></h5>
+        <span id="userEmail" class="text-muted small ms-auto me-2"></span>
+        <button id="logoutButton" class="btn btn-sm btn-outline-danger" type="button">Keluar</button>
+      </div>
+
+      <div class="container-fluid p-4">
+        <section id="view-dashboard" class="view-section active-view" aria-labelledby="dashboard-title">
+          <h3 id="dashboard-title" class="fw-bold text-primary mb-4 border-bottom border-primary pb-2"><i class="fas fa-chart-pie me-2"></i>Dashboard Analitik MPP <small id="tanggalHariIni" class="text-muted small fw-normal"></small></h3>
+          <div class="row mb-4">
+            <div class="col-md-4 mb-3"><div class="card shadow-sm border-primary text-center p-4"><h1 class="text-primary fw-bold" id="dash-total">-</h1><span class="text-muted fw-bold">Total Pasien Diaktivasi</span></div></div>
+            <div class="col-md-4 mb-3"><div class="card shadow-sm border-warning text-center p-4 bg-warning bg-opacity-10"><h1 class="text-warning fw-bold" id="dash-pending">-</h1><span class="text-dark fw-bold">Menunggu Tindak Lanjut</span></div></div>
+            <div class="col-md-4 mb-3"><div class="card shadow-sm border-success text-center p-4 bg-success bg-opacity-10"><h1 class="text-success fw-bold" id="dash-selesai">-</h1><span class="text-dark fw-bold">Selesai Ditangani</span></div></div>
+          </div>
+          <div id="dashboardAlert" class="alert d-none" role="status"></div>
+          <div class="row mb-4">
+            <div class="col-lg-7 mb-3"><div class="card shadow-sm p-4 h-100 border-top border-primary border-4"><div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2 flex-wrap gap-2"><h6 class="fw-bold text-primary mb-0"><i class="fas fa-chart-bar me-2"></i>Distribusi Aktivasi & Tren</h6><select id="pilihanGrafikDinamis" class="form-select form-select-sm border-primary fw-bold text-dark shadow-sm dashboard-chart-select"><option value="ruang">Bar: Distribusi Per Ruangan</option><option value="pembiayaan">Pie: Jenis Pembiayaan</option><option value="diagnosa">Bar: Diagnosa Terbanyak</option><option value="tren_mpp">Line: Tren Kinerja Petugas MPP</option></select></div><div class="dashboard-chart-wrap"><canvas id="chartDinamis"></canvas></div></div></div>
+            <div class="col-lg-5 mb-3"><div class="card shadow-sm p-4 h-100 border-top border-info border-4"><div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2"><h6 class="fw-bold text-info mb-0"><i class="fas fa-chart-pie me-2"></i>Analisis Informasi Pasien</h6><button class="btn btn-sm btn-info text-white fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseKeteranganPie"><i class="fas fa-info-circle"></i> Info</button></div><div class="dashboard-chart-wrap dashboard-chart-small"><canvas id="chartAnalisis"></canvas></div><div class="collapse mt-3" id="collapseKeteranganPie"><div class="card card-body bg-light border-info border-2 small fw-semibold" id="tempatKeteranganPie">Distribusi alasan analisis dari tindak lanjut yang sudah tersimpan.</div></div></div></div>
+          </div>
+          <div class="card shadow-sm p-4 border-top border-warning border-4 mb-4"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="fw-bold text-warning mb-0"><i class="fas fa-list-alt me-2"></i>Antrian Pasien Membutuhkan Tindak Lanjut</h5><button id="refreshDashboardButton" class="btn btn-sm btn-outline-warning text-dark fw-bold" type="button"><i class="fas fa-sync-alt"></i> Refresh Data</button></div><div class="table-responsive"><table class="table table-hover align-middle border"><thead class="table-light"><tr><th>Tgl Aktivasi</th><th>Nama Pasien</th><th>No. RM</th><th>Ruang Perawatan</th><th>Nama Pelapor (PPA)</th><th class="text-center">Aksi (Proses / Detail)</th></tr></thead><tbody id="tabelAntrianDashboard"><tr><td colspan="6" class="text-center text-muted py-4">Memuat data antrian pasien...</td></tr></tbody></table></div></div>
+          <div class="card shadow-sm p-4 border-top border-success border-4 mb-2"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="fw-bold text-success mb-0"><i class="fas fa-check-circle me-2"></i>Riwayat Pasien Selesai Ditindaklanjuti MPP</h5></div>
+            <div class="row mb-3 p-3 bg-light border border-success rounded align-items-end mx-0"><div class="col-md-3 mb-2 mb-md-0"><label for="filterPetugasMpp" class="form-label fw-bold text-success small mb-1">Filter Petugas MPP</label><select id="filterPetugasMpp" class="form-select form-select-sm border-success fw-semibold"><option value="SEMUA">Semua Petugas MPP</option><option value="PRIYO">Priyo Sulistiyono</option><option value="ARUM">Wahyu Dyah Setyaningrum</option></select></div><div class="col-md-3 mb-2 mb-md-0"><label for="filterTglMulai" class="form-label fw-bold text-success small mb-1">Mulai Tanggal</label><input id="filterTglMulai" type="date" class="form-control form-control-sm border-success"></div><div class="col-md-3 mb-2 mb-md-0"><label for="filterTglAkhir" class="form-label fw-bold text-success small mb-1">Sampai Tanggal</label><input id="filterTglAkhir" type="date" class="form-control form-control-sm border-success"></div><div class="col-md-3"><button id="terapkanFilterRiwayat" class="btn btn-sm btn-success w-100 fw-bold shadow-sm" type="button"><i class="fas fa-filter me-1"></i>Terapkan Filter</button></div></div>
+            <div class="table-responsive"><table class="table table-hover align-middle border"><thead class="table-light"><tr><th>Tgl TL</th><th>Nama Pasien</th><th>No. RM</th><th>Ruangan</th><th>Petugas MPP</th><th>Analisis Informasi</th><th class="text-center">Aksi / Detail</th></tr></thead><tbody id="tabelRiwayatDashboard"><tr><td colspan="7" class="text-center text-muted py-4">Memuat riwayat intervensi MPP...</td></tr></tbody></table></div>
+          </div>
+        </section>
+
+        <section id="view-form-ppa" class="view-section d-none" aria-label="Form Aktivasi PPA"></section>
+
+        <section id="view-tindak-lanjut" class="view-section d-none" aria-label="Tindak Lanjut MPP"></section>
+
+        <section id="view-form-a" class="view-section d-none">
+          <!-- Nanti HTML Form A di-paste di sini -->
+        </section>
+
+        <section id="view-igd" class="view-section d-none">
+          <!-- Nanti HTML IgdView di-paste di sini -->
+        </section>
+      </div>
+      <div class="modal fade" id="modalDetailMpp" tabindex="-1" aria-labelledby="modalDetailMppLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-success text-white"><h5 class="modal-title fw-bold" id="modalDetailMppLabel"><i class="fas fa-file-medical-alt me-2"></i>Detail Tindak Lanjut MPP</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
+          <div class="modal-body bg-light"><div class="card mb-3 border-success"><div class="card-header bg-success bg-opacity-10 text-success fw-bold">Analisis Informasi</div><div class="card-body"><p id="teksModalAnalisis" class="mb-0 text-dark small" style="white-space:pre-wrap"></p></div></div><div class="card mb-3 border-primary"><div class="card-header bg-primary bg-opacity-10 text-primary fw-bold">Plan of Care MPP</div><div class="card-body"><p id="teksModalPlanOfCare" class="mb-0 text-dark" style="white-space:pre-wrap"></p></div></div><p id="teksModalKeterangan" class="small text-muted"></p></div>
+          <div class="modal-footer bg-white"><button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Tutup</button></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    const sidebar = document.getElementById('sidebar');
+    const content = document.getElementById('content');
+    if (window.matchMedia('(max-width: 800px)').matches) {
+      sidebar.classList.add('toggled');
+      content.classList.add('expanded');
+    }
+    document.getElementById('sidebarCollapse').addEventListener('click', function () {
+      sidebar.classList.toggle('toggled');
+      content.classList.toggle('expanded');
+    });
+
+    function switchView(viewId, element) {
+      document.querySelectorAll('.view-section').forEach((view) => {
+        view.classList.add('d-none');
+        view.classList.remove('active-view');
+      });
+      document.querySelectorAll('#sidebar .nav-link').forEach((link) => link.classList.remove('active'));
+      const target = document.getElementById(viewId);
+      if (target) {
+        target.classList.remove('d-none');
+        target.classList.add('active-view');
+      }
+      if (element?.classList.contains('nav-link')) element.classList.add('active');
+    }
+
+    const todayLabel = document.getElementById('tanggalHariIni');
+    if (todayLabel) todayLabel.textContent = ` · ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date())}`;
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

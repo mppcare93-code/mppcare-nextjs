@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+buat-tabel.js
+supabase-mpp-migration.sql
+node_modules

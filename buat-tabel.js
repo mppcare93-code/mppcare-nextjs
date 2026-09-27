@@ -64,13 +64,55 @@ const queryBuatTabel = `
   );
 `;
 
-async function buatTabelIgd() {
+const queryBuatTabelAktivasiMpp = `
+  CREATE TABLE IF NOT EXISTS public.aktivasi_mpp (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tgl_aktivasi DATE,
+    tgl_masuk_rs DATE,
+    nama_pasien VARCHAR(255),
+    no_rm VARCHAR(50),
+    usia INTEGER,
+    ruang VARCHAR(150),
+    nama_pelapor VARCHAR(255),
+    jenis_pembiayaan VARCHAR(150),
+    diagnosa TEXT,
+    dpjp VARCHAR(255),
+    data_informasi TEXT,
+    mpp_tujuan VARCHAR(10)
+      CHECK (mpp_tujuan IS NULL OR mpp_tujuan IN ('PRIYO', 'ARUM')),
+    status VARCHAR(50) NOT NULL DEFAULT 'Menunggu',
+    waktu_input TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+`;
+
+const queryBuatTabelFormA = `
+  CREATE TABLE IF NOT EXISTS public.form_a_mpp (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    waktu_simpan TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    nama_pasien VARCHAR(255) NOT NULL,
+    nomor_rm VARCHAR(50) NOT NULL,
+    tgl_lahir DATE,
+    tgl_mrs DATE,
+    tgl_pengkajian DATE,
+    bagian_a_skrining TEXT,
+    bagian_b_asesmen TEXT,
+    bagian_c_masalah TEXT,
+    bagian_d_sasaran TEXT,
+    bagian_e_perencanaan TEXT,
+    nama_mpp_ttd VARCHAR(100),
+    CONSTRAINT form_a_mpp_schema_pkey PRIMARY KEY (id)
+  );
+`;
+
+async function buatTabelMpp() {
   loadLocalEnv();
 
-  const connectionString = process.env.SUPABASE_DB_URL;
-  if (!connectionString) {
+  const connectionString =
+    process.env.SUPABASE_DB_URL ||
+    "postgresql://USER:PASSWORD@HOST:PORT/DATABASE";
+  if (connectionString === "postgresql://USER:PASSWORD@HOST:PORT/DATABASE") {
     throw new Error(
-      "SUPABASE_DB_URL belum diatur. Isi di file .env atau sebagai environment variable."
+      "Atur SUPABASE_DB_URL di file .env/environment, atau ganti placeholder connectionString di skrip."
     );
   }
 
@@ -97,26 +139,45 @@ async function buatTabelIgd() {
     connectionString,
     ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: 15000,
-    application_name: "buat-tabel-monitoring-igd",
+    application_name: "buat-tabel-mpp",
   });
 
   let connected = false;
+  let transactionStarted = false;
   try {
     console.log("Menghubungkan ke Supabase PostgreSQL...");
     await client.connect();
     connected = true;
-    console.log("Koneksi berhasil. Membuat tabel monitoring_igd...");
+    console.log("Koneksi berhasil. Menyiapkan tabel monitoring_igd, aktivasi_mpp, dan form_a_mpp...");
 
+    await client.query("BEGIN");
+    transactionStarted = true;
     await client.query(queryBuatTabel);
+    await client.query(queryBuatTabelAktivasiMpp);
+    await client.query(queryBuatTabelFormA);
 
     const verification = await client.query(
-      "SELECT to_regclass('public.monitoring_igd') AS table_name"
+      `SELECT
+        to_regclass('public.monitoring_igd') AS monitoring_igd,
+        to_regclass('public.aktivasi_mpp') AS aktivasi_mpp,
+        to_regclass('public.form_a_mpp') AS form_a_mpp`
     );
-    if (!verification.rows[0]?.table_name) {
-      throw new Error("Perintah selesai, tetapi tabel public.monitoring_igd tidak ditemukan.");
+    const tables = verification.rows[0];
+    const missingTables = Object.entries(tables)
+      .filter(([, tableName]) => !tableName)
+      .map(([tableName]) => `public.${tableName}`);
+    if (missingTables.length) {
+      throw new Error(`Tabel tidak ditemukan setelah pembuatan: ${missingTables.join(", ")}.`);
     }
 
-    console.log("Berhasil: tabel public.monitoring_igd sudah tersedia.");
+    await client.query("COMMIT");
+    transactionStarted = false;
+    console.log(
+      "Berhasil: tabel public.monitoring_igd, public.aktivasi_mpp, dan public.form_a_mpp sudah tersedia."
+    );
+  } catch (error) {
+    if (transactionStarted) await client.query("ROLLBACK");
+    throw error;
   } finally {
     if (connected) {
       await client.end();
@@ -124,8 +185,8 @@ async function buatTabelIgd() {
   }
 }
 
-buatTabelIgd().catch((error) => {
-  console.error("Gagal membuat tabel monitoring_igd.");
+buatTabelMpp().catch((error) => {
+  console.error("Gagal membuat atau memverifikasi tabel database.");
   console.error(error.message);
   if (error.code) console.error(`Kode PostgreSQL: ${error.code}`);
   process.exitCode = 1;

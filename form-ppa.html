@@ -1,0 +1,92 @@
+<div class="card bg-white shadow-sm border-top border-success border-4 p-4">
+  <h4 class="fw-bold text-success text-center mb-4">Form Aktivasi MPP (Diisi oleh PPA)</h4>
+
+  <div class="mb-4 text-center border border-success p-3 rounded bg-success bg-opacity-10">
+    <label class="fw-bold d-block mb-3 text-dark fs-5">Pilih Tujuan Ruang Kerja MPP:</label>
+    <div class="d-flex justify-content-center align-items-center gap-4 flex-wrap">
+      <label class="form-check p-3 border border-success rounded bg-white shadow-sm d-flex align-items-center" for="radioPriyo">
+        <input class="form-check-input border-success me-3 mt-0" style="width:20px;height:20px" type="radio" name="pilihanMPP" id="radioPriyo" value="PRIYO" checked>
+        <img src="https://i.ibb.co.com/zTqjK74r/Whats-App-Image-2026-09-10-at-11-19-39.jpg" alt="Foto Priyo" class="rounded-circle border border-2 border-success me-2 shadow-sm" style="width:50px;height:50px;object-fit:cover">
+        <span class="fw-bold text-success fs-5">MPP PRIYO</span>
+      </label>
+      <label class="form-check p-3 border border-success rounded bg-white shadow-sm d-flex align-items-center" for="radioArum">
+        <input class="form-check-input border-success me-3 mt-0" style="width:20px;height:20px" type="radio" name="pilihanMPP" id="radioArum" value="ARUM">
+        <img src="https://i.ibb.co.com/0jZjvHLd/Wahyu-Dyah-Setyaningrum-SST-jpg.jpg" alt="Foto Arum" class="rounded-circle border border-2 border-success me-2 shadow-sm" style="width:50px;height:50px;object-fit:cover">
+        <span class="fw-bold text-success fs-5">MPP ARUM</span>
+      </label>
+    </div>
+  </div>
+
+  <form id="formPPA">
+    <div class="p-4 border-start border-5 border-success bg-light rounded shadow-sm">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="ruang" class="form-label fw-semibold text-dark">Ruang Perawatan</label>
+          <select id="ruang" class="form-select border-success" required>
+            <option value="" disabled selected>-- Pilih Ruangan --</option>
+            <option value="IGD">IGD</option><option value="ICU,PICU">ICU,PICU</option><option value="NICU">NICU</option>
+            <option value="BOROBUDUR 1 A">BOROBUDUR 1 A</option><option value="BOROBUDUR 1B">BOROBUDUR 1B</option>
+            <option value="BOROBUDUR 2">BOROBUDUR 2</option><option value="BOROBUDUR 3">BOROBUDUR 3</option>
+            <option value="CANDI NGAWEN">CANDI NGAWEN</option><option value="CANDI PAWON">CANDI PAWON</option>
+            <option value="CANDI SELOGRIYO">CANDI SELOGRIYO</option><option value="CANDI MENDUT">CANDI MENDUT</option>
+            <option value="IBS">IBS</option><option value="POLIKLINIK">POLIKLINIK</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3"><label for="namaPPA" class="form-label fw-semibold text-dark">Nama PPA Pelapor</label><input type="text" id="namaPPA" class="form-control border-success" placeholder="Contoh: Ns. Budi" required></div>
+        <div class="col-md-6 mb-3"><label for="tglAktivasi" class="form-label fw-semibold text-dark">Tanggal Aktivasi MPP</label><input type="date" id="tglAktivasi" class="form-control border-success" required></div>
+        <div class="col-md-6 mb-3"><label for="tglMasukRS" class="form-label fw-semibold text-dark">Tanggal Masuk RS</label><input type="date" id="tglMasukRS" class="form-control border-success" required></div>
+        <div class="col-md-6 mb-3"><label for="namaPasien" class="form-label fw-semibold text-dark">Nama Pasien</label><input type="text" id="namaPasien" class="form-control border-success" required></div>
+        <div class="col-md-6 mb-3"><label for="nomorRM" class="form-label fw-semibold text-dark">Nomor RM</label><input type="text" id="nomorRM" class="form-control border-success" required><small id="statusCariPpaRm" class="form-text text-muted" aria-live="polite">Pencarian data pasien lama berjalan setelah nomor RM diisi.</small></div>
+        <div class="col-md-4 mb-3"><label for="usia" class="form-label fw-semibold text-dark">Usia (Tahun)</label><input type="number" id="usia" class="form-control border-success" min="0" required></div>
+        <div class="col-md-8 mb-3">
+          <label for="jenisPembiayaan" class="form-label fw-semibold text-dark">Jenis Pembiayaan</label>
+          <select id="jenisPembiayaan" class="form-select border-success" required>
+            <option value="" disabled selected>-- Pilih Pembiayaan --</option>
+            <option value="BPJS KESEHATAN">BPJS KESEHATAN</option><option value="BPJS KETENAGAKERJAAN">BPJS KETENAGAKERJAAN</option>
+            <option value="JASA RAHARJA">JASA RAHARJA</option><option value="BANSOS">BANSOS</option>
+            <option value="ASURANSI LAIN">ASURANSI LAIN</option><option value="UMUM">UMUM</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label for="dpjp" class="form-label fw-semibold text-dark">DPJP Utama</label>
+          <select id="dpjp" class="form-select border-success" multiple style="height:140px" required>
+            <option value="dr. Galih Dwi Jayanto, Sp.PD">dr. Galih Dwi Jayanto, Sp.PD</option>
+            <option value="dr. Dandy Firmansyah, Sp.PD">dr. Dandy Firmansyah, Sp.PD</option>
+            <option value="dr. Antonius Priyohartono, Sp.PD">dr. Antonius Priyohartono, Sp.PD</option>
+            <option value="dr. Rony Kendyartanto, Sp.PD">dr. Rony Kendyartanto, Sp.PD</option>
+            <option value="dr. Nungky Nugroho, Sp.OG">dr. Nungky Nugroho, Sp.OG</option>
+            <option value="dr. Danu Lestariyanto, Sp.OG">dr. Danu Lestariyanto, Sp.OG</option>
+            <option value="dr. Ricky Bernadi, Sp.OG">dr. Ricky Bernadi, Sp.OG</option>
+            <option value="dr. Afriliandryf, Sp.B">dr. Afriliandryf, Sp.B</option>
+            <option value="dr. Pramudyo H, Sp.B">dr. Pramudyo H, Sp.B</option>
+            <option value="dr. Wawan Suci, Sp.B">dr. Wawan Suci, Sp.B</option>
+            <option value="dr. Irsalina Nur S, Sp.JP, FIHA">dr. Irsalina Nur S, Sp.JP, FIHA</option>
+            <option value="dr. Dadang Arif P, Sp.U">dr. Dadang Arif P, Sp.U</option>
+            <option value="dr. Faisal Farhan A, Sp.U">dr. Faisal Farhan A, Sp.U</option>
+            <option value="dr. Resa Gratya, Sp.A, M.Kes">dr. Resa Gratya, Sp.A, M.Kes</option>
+            <option value="dr. Arta Christin Y, Sp.A">dr. Arta Christin Y, Sp.A</option>
+            <option value="dr. Juliani, M.Kes, Sp.A(K)">dr. Juliani, M.Kes, Sp.A(K)</option>
+            <option value="dr. M. Arikhan O, Sp.BA">dr. M. Arikhan O, Sp.BA</option>
+            <option value="dr. Wildan Ferdian, Sp.P">dr. Wildan Ferdian, Sp.P</option>
+            <option value="dr. Betagia S Wisesa, Sp.KG">dr. Betagia S Wisesa, Sp.KG</option>
+            <option value="dr. Ronaa Nuqtho, Sp.OT">dr. Ronaa Nuqtho, Sp.OT</option>
+            <option value="dr. Morteza Bahesdhi, Sp.OT">dr. Morteza Bahesdhi, Sp.OT</option>
+            <option value="dr. Mutiah M, Sp.N">dr. Mutiah M, Sp.N</option>
+            <option value="dr. H. Soleh, Sp.N, FINA, ME">dr. H. Soleh, Sp.N, FINA, ME</option>
+            <option value="dr. Ganjar S, Sp.M">dr. Ganjar S, Sp.M</option>
+            <option value="dr. Ida Ayu P, Sp.K.F.R., AIFO-K">dr. Ida Ayu P, Sp.K.F.R., AIFO-K</option>
+            <option value="dr. Jeffrey Giantoro, Sp.DVE">dr. Jeffrey Giantoro, Sp.DVE</option>
+            <option value="dr. Masyi Wimy J, Sp.KJ">dr. Masyi Wimy J, Sp.KJ</option>
+            <option value="dr. Therry Tulus, Sp.THT-KL">dr. Therry Tulus, Sp.THT-KL</option>
+            <option value="dr. Nur Hamam, MMR">dr. Nur Hamam, MMR</option>
+            <option value="dr. Novianto Kurniawan, M.Sc, Sp.An.">dr. Novianto Kurniawan, M.Sc, Sp.An.</option>
+          </select>
+          <small class="text-muted">Pilih lebih dari satu dengan Ctrl atau Cmd.</small>
+        </div>
+        <div class="col-12 mb-2"><label for="dataInformasi" class="form-label fw-semibold text-dark">Data / Informasi Penting (Observasi PPA)</label><textarea id="dataInformasi" class="form-control border-success" rows="3" placeholder="Tuliskan catatan kondisi khusus pasien..." required></textarea></div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success w-100 fw-bold py-3 mt-4 fs-5 shadow-sm" id="btnSimpanPPA"><i class="fas fa-paper-plane me-2"></i>Kirim Form Aktivasi</button>
+    <div id="alertPPA" class="alert mt-3 d-none text-center fw-bold fs-6" role="status"></div>
+  </form>
+</div>
