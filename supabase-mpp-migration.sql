@@ -37,7 +37,11 @@ DROP POLICY IF EXISTS aktivasi_select_role ON public.aktivasi_mpp;
 CREATE POLICY aktivasi_select_role ON public.aktivasi_mpp
   FOR SELECT TO authenticated
   USING (
-    COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') IN ('ppa', 'admin')
+    auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'
+    OR (
+      auth.jwt() -> 'app_metadata' ->> 'role' = 'ppa'
+      AND ruang = auth.jwt() -> 'app_metadata' ->> 'room'
+    )
     OR (
       auth.jwt() -> 'app_metadata' ->> 'role' = 'mpp'
       AND mpp_tujuan = auth.jwt() -> 'app_metadata' ->> 'mpp_tujuan'
@@ -47,7 +51,13 @@ CREATE POLICY aktivasi_select_role ON public.aktivasi_mpp
 DROP POLICY IF EXISTS aktivasi_insert_ppa ON public.aktivasi_mpp;
 CREATE POLICY aktivasi_insert_ppa ON public.aktivasi_mpp
   FOR INSERT TO authenticated
-  WITH CHECK ((auth.jwt() -> 'app_metadata' ->> 'role') IN ('ppa', 'admin'));
+  WITH CHECK (
+    auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'
+    OR (
+      auth.jwt() -> 'app_metadata' ->> 'role' = 'ppa'
+      AND ruang = auth.jwt() -> 'app_metadata' ->> 'room'
+    )
+  );
 
 DROP POLICY IF EXISTS aktivasi_update_mpp ON public.aktivasi_mpp;
 CREATE POLICY aktivasi_update_mpp ON public.aktivasi_mpp

@@ -19,9 +19,14 @@
       <span class="brand-mark">MPP</span>
       <p class="eyebrow">RSUD MERAH PUTIH</p>
       <h1 id="loginTitle">Masuk ke MPPCare</h1>
-      <p class="auth-copy">Gunakan akun Supabase yang telah diberi role PPA atau MPP.</p>
+      <p class="auth-copy">Pilih akun unit kerja dan masukkan password.</p>
       <div id="authAlert" class="alert d-none" role="alert"></div>
-      <label>Email<input id="loginEmail" class="form-control" type="email" autocomplete="username" required></label>
+      <label for="loginAccount">Akun<select id="loginAccount" class="form-select" autocomplete="username" required>
+        <option value="" disabled selected>-- Pilih akun --</option>
+        <optgroup label="Administrator"><option value="admin">Administrator</option></optgroup>
+        <optgroup label="Petugas MPP"><option value="mpp1">MPP 1</option><option value="mpp2">MPP 2</option></optgroup>
+        <optgroup label="Ruangan"><option value="igd">IGD</option><option value="icu-picu">ICU/PICU</option><option value="nicu">NICU</option><option value="borobudur-1a">BOROBUDUR 1A</option><option value="borobudur-1b">BOROBUDUR 1B</option><option value="borobudur-2">BOROBUDUR 2</option><option value="borobudur-3">BOROBUDUR 3</option><option value="candi-pawon">CANDI PAWON</option><option value="candi-ngawen">CANDI NGAWEN</option><option value="candi-selogriyo">CANDI SELOGRIYO</option><option value="candi-mendut">CANDI MENDUT</option><option value="ibs">IBS</option><option value="poliklinik">POLIKLINIK</option></optgroup>
+      </select></label>
       <label>Password<input id="loginPassword" class="form-control" type="password" autocomplete="current-password" required></label>
       <button id="loginSubmit" class="btn btn-success w-100" type="submit">Masuk</button>
     </form>

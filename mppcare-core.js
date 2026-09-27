@@ -1,11 +1,20 @@
 (() => {
   const supabase = window.supabaseClient;
   if (!supabase) throw new Error('Supabase client belum siap. Periksa urutan modul aplikasi.');
+  const roomAccounts = [
+    ['igd', 'IGD'], ['icu-picu', 'ICU,PICU'], ['nicu', 'NICU'],
+    ['borobudur-1a', 'BOROBUDUR 1A'], ['borobudur-1b', 'BOROBUDUR 1B'],
+    ['borobudur-2', 'BOROBUDUR 2'], ['borobudur-3', 'BOROBUDUR 3'],
+    ['candi-pawon', 'CANDI PAWON'], ['candi-ngawen', 'CANDI NGAWEN'],
+    ['candi-selogriyo', 'CANDI SELOGRIYO'], ['candi-mendut', 'CANDI MENDUT'],
+    ['ibs', 'IBS'], ['poliklinik', 'POLIKLINIK']
+  ];
+  const accountEmail = (account) => `${account}@mppcare.invalid`;
 
   const app = window.MPPCare = {
     supabase,
     modules: {},
-    state: { role: null, user: null, mppTarget: null, activations: [] },
+    state: { role: null, user: null, room: null, mppTarget: null, activations: [] },
     today: () => {
       const now = new Date();
       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -31,6 +40,7 @@
       const value = sources.find((target) => target != null && String(target).trim());
       return value ? String(value).trim().toUpperCase() : '';
     },
+    getUserRoom: (user) => String(user?.app_metadata?.room || user?.raw_app_meta_data?.room || '').trim().toUpperCase(),
     canPpa: (role) => ['ppa', 'admin'].includes(role),
     canMpp: (role) => ['mpp', 'admin'].includes(role),
     setAlert(id, message, type = 'danger') {
@@ -92,7 +102,7 @@
     const gate = document.getElementById('authGate');
     const shell = document.querySelector('.app-shell');
     if (!session?.user) {
-      app.state = { role: null, user: null, mppTarget: null, activations: [] };
+      app.state = { role: null, user: null, room: null, mppTarget: null, activations: [] };
       window.currentMppcareRole = null;
       gate?.classList.remove('d-none');
       shell?.classList.add('d-none');
@@ -102,6 +112,8 @@
 
     const role = app.getUserRole(session.user);
     const mppTarget = app.getUserMppTarget(session.user);
+    const room = app.getUserRoom(session.user);
+    const profile = roomAccounts.find(([, assignedRoom]) => assignedRoom === room);
 
     if (!['ppa', 'mpp', 'admin'].includes(role)) {
       app.setAlert('authAlert', 'Akun belum memiliki role ppa atau mpp. Set role di Supabase Auth → Users → app_metadata / raw_app_meta_data, lalu login ulang.');
@@ -115,13 +127,18 @@
       shell?.classList.add('d-none');
       return;
     }
+    if (role === 'ppa' && (!profile || session.user.email?.toLowerCase() !== accountEmail(profile[0]))) {
+      await supabase.auth.signOut();
+      app.setAlert('authAlert', 'Akun ruangan belum memiliki app_metadata.room yang cocok. Atur metadata sesuai ruangan akun di Supabase.');
+      return;
+    }
 
-    app.state = { role, user: session.user, mppTarget: role === 'mpp' ? mppTarget : null, activations: [] };
+    app.state = { role, user: session.user, room: role === 'ppa' ? room : null, mppTarget: role === 'mpp' ? mppTarget : null, activations: [] };
     window.currentMppcareRole = role;
     gate?.classList.add('d-none');
     shell?.classList.remove('d-none');
     updateNavigation(role);
-    document.getElementById('userEmail').textContent = session.user.email || '';
+    document.getElementById('userEmail').textContent = room || (role === 'mpp' ? `MPP ${mppTarget}` : session.user.email || '');
     window.dispatchEvent(new CustomEvent('mppcare:session-ready', { detail: { role, user: session.user } }));
 
     await Promise.all([
@@ -141,7 +158,7 @@
       button.disabled = true;
       try {
         const { error } = await supabase.auth.signInWithPassword({
-          email: document.getElementById('loginEmail').value.trim(),
+          email: accountEmail(document.getElementById('loginAccount').value),
           password: document.getElementById('loginPassword').value
         });
         if (error) throw error;

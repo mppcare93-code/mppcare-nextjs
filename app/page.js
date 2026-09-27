@@ -78,9 +78,9 @@ export default function HomePage() {
           <span className="brand-mark">MPP</span>
           <p className="eyebrow">RSUD MERAH PUTIH</p>
           <h1 id="loginTitle">Masuk ke MPPCare</h1>
-          <p className="auth-copy">Gunakan akun Supabase yang telah diberi role PPA atau MPP.</p>
+          <p className="auth-copy">Pilih akun unit kerja dan masukkan password.</p>
           <div id="authAlert" className="alert d-none" role="alert" />
-          <label>Email<input id="loginEmail" className="form-control" type="email" autoComplete="username" required /></label>
+          <label htmlFor="loginAccount">Akun<select id="loginAccount" className="form-select" autoComplete="username" required defaultValue=""><option value="" disabled>-- Pilih akun --</option><optgroup label="Administrator"><option value="admin">Administrator</option></optgroup><optgroup label="Petugas MPP"><option value="mpp1">MPP 1</option><option value="mpp2">MPP 2</option></optgroup><optgroup label="Ruangan"><option value="igd">IGD</option><option value="icu-picu">ICU/PICU</option><option value="nicu">NICU</option><option value="borobudur-1a">BOROBUDUR 1A</option><option value="borobudur-1b">BOROBUDUR 1B</option><option value="borobudur-2">BOROBUDUR 2</option><option value="borobudur-3">BOROBUDUR 3</option><option value="candi-pawon">CANDI PAWON</option><option value="candi-ngawen">CANDI NGAWEN</option><option value="candi-selogriyo">CANDI SELOGRIYO</option><option value="candi-mendut">CANDI MENDUT</option><option value="ibs">IBS</option><option value="poliklinik">POLIKLINIK</option></optgroup></select></label>
           <label>Password<input id="loginPassword" className="form-control" type="password" autoComplete="current-password" required /></label>
           <button id="loginSubmit" className="btn btn-success w-100" type="submit">Masuk</button>
         </form>

@@ -9,6 +9,7 @@
     const form = document.getElementById('formPPA');
     if (!form) return;
     wired = true;
+    document.getElementById('ruangAktivasi').textContent = app.state.room || 'Akun belum memiliki ruangan';
     document.getElementById('tglAktivasi').value = app.today();
     document.getElementById('tglMasukRS').value = app.today();
     document.getElementById('nomorRM').addEventListener('blur', lookupPreviousPatient);
@@ -46,7 +47,7 @@
     const form = event.currentTarget;
     const row = {
       mpp_tujuan: form.querySelector('[name="pilihanMPP"]:checked')?.value,
-      ruang: document.getElementById('ruang').value,
+      ruang: app.state.room,
       nama_pelapor: document.getElementById('namaPPA').value.trim(),
       tgl_aktivasi: document.getElementById('tglAktivasi').value,
       tgl_masuk_rs: document.getElementById('tglMasukRS').value,
@@ -59,6 +60,10 @@
       data_informasi: document.getElementById('dataInformasi').value.trim(),
       status: 'Menunggu'
     };
+    if (!row.ruang) {
+      app.setAlert('alertPPA', 'Akun ini belum memiliki ruangan yang ditetapkan. Hubungi administrator.');
+      return;
+    }
     const button = form.querySelector('[type="submit"]');
     button.disabled = true;
     try {

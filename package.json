@@ -5,12 +5,16 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "accounts:provision": "node scripts/manage-supabase-accounts.js provision",
+    "accounts:delete-legacy": "node scripts/manage-supabase-accounts.js delete-legacy"
   },
   "dependencies": {
+    "lucide-react": "^1.48.0",
     "next": "latest",
     "pg": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "recharts": "^3.10.1"
   }
 }

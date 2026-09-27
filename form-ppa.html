@@ -20,18 +20,7 @@
   <form id="formPPA">
     <div class="p-4 border-start border-5 border-success bg-light rounded shadow-sm">
       <div class="row">
-        <div class="col-md-6 mb-3">
-          <label for="ruang" class="form-label fw-semibold text-dark">Ruang Perawatan</label>
-          <select id="ruang" class="form-select border-success" required>
-            <option value="" disabled selected>-- Pilih Ruangan --</option>
-            <option value="IGD">IGD</option><option value="ICU,PICU">ICU,PICU</option><option value="NICU">NICU</option>
-            <option value="BOROBUDUR 1 A">BOROBUDUR 1 A</option><option value="BOROBUDUR 1B">BOROBUDUR 1B</option>
-            <option value="BOROBUDUR 2">BOROBUDUR 2</option><option value="BOROBUDUR 3">BOROBUDUR 3</option>
-            <option value="CANDI NGAWEN">CANDI NGAWEN</option><option value="CANDI PAWON">CANDI PAWON</option>
-            <option value="CANDI SELOGRIYO">CANDI SELOGRIYO</option><option value="CANDI MENDUT">CANDI MENDUT</option>
-            <option value="IBS">IBS</option><option value="POLIKLINIK">POLIKLINIK</option>
-          </select>
-        </div>
+        <div class="col-md-6 mb-3"><span class="form-label fw-semibold text-dark d-block">Ruang Pelapor</span><span id="ruangAktivasi" class="form-control bg-light border-success">Ditentukan otomatis dari akun</span></div>
         <div class="col-md-6 mb-3"><label for="namaPPA" class="form-label fw-semibold text-dark">Nama PPA Pelapor</label><input type="text" id="namaPPA" class="form-control border-success" placeholder="Contoh: Ns. Budi" required></div>
         <div class="col-md-6 mb-3"><label for="tglAktivasi" class="form-label fw-semibold text-dark">Tanggal Aktivasi MPP</label><input type="date" id="tglAktivasi" class="form-control border-success" required></div>
         <div class="col-md-6 mb-3"><label for="tglMasukRS" class="form-label fw-semibold text-dark">Tanggal Masuk RS</label><input type="date" id="tglMasukRS" class="form-control border-success" required></div>
