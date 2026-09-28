@@ -1,3 +1,42 @@
+CREATE TABLE IF NOT EXISTS public.monitoring_igd (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tanggal DATE,
+  no_rm VARCHAR(50),
+  nama_pasien VARCHAR(255),
+  informed_consent VARCHAR(100),
+  inden_bangsal VARCHAR(150),
+  jam_inden TIME,
+  jaminan VARCHAR(100),
+  jam_daftar TIME,
+  nomor_bed VARCHAR(50),
+  nama_dpjp VARCHAR(255),
+  lab_status VARCHAR(20),
+  radiologi_status VARCHAR(20),
+  akomodasi_status VARCHAR(20),
+  visit_dpjp_status VARCHAR(20),
+  koordinasi TEXT,
+  komunikasi TEXT,
+  kolaborasi TEXT,
+  fasilitasi TEXT,
+  edukasi TEXT,
+  advokasi TEXT,
+  koordinasi_kepala_ruang TEXT,
+  koordinasi_dpjp TEXT,
+  koordinasi_ibs TEXT,
+  koordinasi_lab TEXT,
+  koordinasi_radiologi TEXT,
+  fasilitas TEXT,
+  akar_masalah TEXT,
+  bangsal_tujuan VARCHAR(150),
+  tanggal_pindah DATE,
+  jam_pindah TIME,
+  waktu_tunggu VARCHAR(100),
+  status_bed VARCHAR(50) NOT NULL DEFAULT 'Menunggu Cleaning Service'
+    CHECK (status_bed IN ('Menunggu Cleaning Service', 'Menunggu Linen/Alat', 'Kamar Siap - Menunggu Transpor')),
+  bed_ready_at TIMESTAMPTZ,
+  waktu_input TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS public.tindak_lanjut_mpp (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   aktivasi_mpp_id UUID NOT NULL UNIQUE
@@ -27,6 +66,18 @@ ALTER TABLE public.monitoring_igd
 
 ALTER TABLE public.monitoring_igd
   ADD COLUMN IF NOT EXISTS bed_ready_at TIMESTAMPTZ;
+
+ALTER TABLE public.monitoring_igd
+  ADD COLUMN IF NOT EXISTS lab_status VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS radiologi_status VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS akomodasi_status VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS visit_dpjp_status VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS koordinasi TEXT,
+  ADD COLUMN IF NOT EXISTS komunikasi TEXT,
+  ADD COLUMN IF NOT EXISTS kolaborasi TEXT,
+  ADD COLUMN IF NOT EXISTS fasilitasi TEXT,
+  ADD COLUMN IF NOT EXISTS edukasi TEXT,
+  ADD COLUMN IF NOT EXISTS advokasi TEXT;
 
 DO $$
 BEGIN

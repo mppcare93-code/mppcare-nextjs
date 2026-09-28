@@ -43,7 +43,7 @@
       <ul class="list-unstyled components mt-3">
         <li data-dashboard-nav><button class="nav-link active" type="button" onclick="switchView('view-dashboard', this)"><i class="fas fa-chart-pie"></i>Dashboard</button></li>
         <li data-role="ppa,admin"><button class="nav-link" type="button" onclick="switchView('view-form-ppa', this)"><i class="fas fa-file-medical"></i>Form Aktivasi PPA</button></li>
-        <li data-role="mpp,admin"><button class="nav-link text-warning fw-bold" type="button" onclick="switchView('view-tindak-lanjut', this)"><i class="fas fa-user-md"></i>Tindak Lanjut MPP <i class="fas fa-lock ms-2 small"></i></button></li>
+        <li data-role="mpp,admin"><button class="nav-link text-warning fw-bold" type="button" onclick="switchView('view-tindak-lanjut', this)"><i class="fas fa-user-md"></i>Tindak Lanjut MPP</button></li>
         <li data-role="mpp,admin"><button class="nav-link text-info fw-bold" type="button" onclick="switchView('view-form-a', this)"><i class="fas fa-print"></i>Cetak Form A (MPP)</button></li>
         <li data-role="ppa,mpp,admin"><button class="nav-link" type="button" onclick="switchView('view-igd', this)"><i class="fas fa-ambulance"></i>Koordinasi Stagnasi IGD</button></li>
       </ul>
@@ -94,7 +94,7 @@
         <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content border-0 shadow-lg">
           <div class="modal-header bg-success text-white"><h5 class="modal-title fw-bold" id="modalDetailMppLabel"><i class="fas fa-file-medical-alt me-2"></i>Detail Tindak Lanjut MPP</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
           <div class="modal-body bg-light"><div class="card mb-3 border-success"><div class="card-header bg-success bg-opacity-10 text-success fw-bold">Analisis Informasi</div><div class="card-body"><p id="teksModalAnalisis" class="mb-0 text-dark small" style="white-space:pre-wrap"></p></div></div><div class="card mb-3 border-primary"><div class="card-header bg-primary bg-opacity-10 text-primary fw-bold">Plan of Care MPP</div><div class="card-body"><p id="teksModalPlanOfCare" class="mb-0 text-dark" style="white-space:pre-wrap"></p></div></div><p id="teksModalKeterangan" class="small text-muted"></p></div>
-          <div class="modal-footer bg-white"><button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Tutup</button></div>
+          <div class="modal-footer bg-white justify-content-between"><button type="button" class="btn btn-outline-danger d-none fw-bold" id="deleteFollowUpButton"><i class="fas fa-trash-alt me-1"></i>Hapus</button><button type="button" class="btn btn-secondary fw-bold" data-bs-dismiss="modal">Tutup</button></div>
         </div></div>
       </div>
     </div>

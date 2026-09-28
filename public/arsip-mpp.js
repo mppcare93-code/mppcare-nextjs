@@ -3,6 +3,7 @@
   if (!app) throw new Error('mppcare-core.js harus dimuat sebelum arsip-mpp.js.');
 
   let completedRows = [];
+  let activeFollowUpId = null;
 
   function splitDpjpNames(value) {
     return String(value || '').split(/,\s*(?=dr\.)/i).map((name) => name.trim()).filter(Boolean);
@@ -122,14 +123,43 @@
     });
   }
 
+  function updateFollowUpActions() {
+    const deleteButton = document.getElementById('deleteFollowUpButton');
+    if (!deleteButton) return;
+    deleteButton.classList.toggle('d-none', app.state.role !== 'mpp' || !activeFollowUpId);
+  }
+
   function showFollowUpDetail(id) {
     const item = completedRows.find((row) => row.id === id);
     if (!item) return;
+    activeFollowUpId = id;
     const analysis = Array.isArray(item.analisis_informasi) ? item.analisis_informasi.join('\n') : item.analisis_informasi;
     document.getElementById('teksModalAnalisis').textContent = analysis || 'Belum diisi';
     document.getElementById('teksModalPlanOfCare').textContent = item.plan_of_care || 'Belum diisi';
     document.getElementById('teksModalKeterangan').textContent = `Keterangan: ${item.keterangan || '-'} · Petugas: ${item.nama_petugas_mpp || '-'}`;
+    updateFollowUpActions();
     bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetailMpp')).show();
+  }
+
+  async function deleteCurrentFollowUp() {
+    if (app.state.role !== 'mpp' || !activeFollowUpId) return;
+    const item = completedRows.find((row) => row.id === activeFollowUpId);
+    if (!item) return;
+    const confirmed = window.confirm(`Hapus tindak lanjut untuk ${item.activation?.nama_pasien || '-'} (RM ${item.activation?.no_rm || '-'})?`);
+    if (!confirmed) return;
+
+    try {
+      const { error: followUpError } = await app.supabase.from('tindak_lanjut_mpp').delete().eq('id', activeFollowUpId);
+      if (followUpError) throw followUpError;
+      const { error: activationError } = await app.supabase.from('aktivasi_mpp').update({ status: 'Menunggu' }).eq('id', item.aktivasi_mpp_id);
+      if (activationError) throw activationError;
+      app.setAlert('archiveAlert', 'Tindak lanjut berhasil dihapus.', 'success');
+      activeFollowUpId = null;
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetailMpp')).hide();
+      await app.refreshData();
+    } catch (error) {
+      app.setAlert('archiveAlert', `Hapus tindak lanjut gagal: ${error.message}`);
+    }
   }
 
   function mount() {
@@ -145,6 +175,7 @@
       const button = event.target.closest('[data-followup-id]');
       if (button) showFollowUpDetail(button.dataset.followupId);
     });
+    document.getElementById('deleteFollowUpButton')?.addEventListener('click', deleteCurrentFollowUp);
     document.getElementById('refreshArchiveButton')?.addEventListener('click', () => app.refreshData());
   }
 

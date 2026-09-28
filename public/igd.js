@@ -3,7 +3,8 @@
   if (!supabase) throw new Error('Supabase client belum siap untuk modul IGD.');
   const criticalAlarm = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3');
 
-  const columns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input,status_bed,bed_ready_at';
+  const legacyColumns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input';
+  const extendedColumns = `${legacyColumns},koordinasi,komunikasi,kolaborasi,fasilitasi,lab_status,radiologi_status,akomodasi_status,visit_dpjp_status,status_bed,bed_ready_at`;
   const bedStatuses = ['Menunggu Cleaning Service', 'Menunggu Linen/Alat', 'Kamar Siap - Menunggu Transpor'];
   const readyBedStatus = bedStatuses[2];
   const defaultBedStatus = bedStatuses[0];
@@ -32,6 +33,15 @@
   const dateText = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('id-ID') : '-';
   const timeText = (value) => value ? String(value).slice(0, 5) : '-';
   const text = (id) => byId(id)?.value?.trim() || '';
+  const multiText = (id) => Array.from(byId(id)?.selectedOptions || []).map((option) => option.value).filter(Boolean).join(', ') || '';
+  const setMultiText = (id, value = '') => {
+    const select = byId(id);
+    if (!select) return;
+    const values = String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+    Array.from(select.options).forEach((option) => {
+      option.selected = values.includes(option.value);
+    });
+  };
   const normalizeBangsal = (value) => String(value || '').trim().toUpperCase().replace(/\s+/g, '').replace(/\//g, ',');
 
   function notify(message, type = 'success') {
@@ -52,8 +62,13 @@
 
   function getStage(row) {
     if (row.bangsal_tujuan) return 'pindah';
-    if (row.koordinasi_kepala_ruang || row.koordinasi_dpjp || row.koordinasi_ibs || row.koordinasi_lab || row.koordinasi_radiologi || row.fasilitas || row.advokasi || row.edukasi || row.akar_masalah) return 'mpp';
-    if (row.nomor_bed || row.nama_dpjp) return 'pelayanan';
+    const hasMppProgress = [
+      row.koordinasi, row.komunikasi, row.kolaborasi, row.fasilitasi, row.edukasi, row.advokasi,
+      row.koordinasi_kepala_ruang, row.koordinasi_dpjp, row.koordinasi_ibs, row.koordinasi_lab, row.koordinasi_radiologi,
+      row.fasilitas, row.akar_masalah
+    ].some(Boolean);
+    if (hasMppProgress) return 'mpp';
+    if (row.nomor_bed || row.nama_dpjp || row.lab_status || row.radiologi_status || row.akomodasi_status || row.visit_dpjp_status) return 'pelayanan';
     return 'inden';
   }
 
@@ -100,15 +115,14 @@
   async function refresh() {
     const tbody = byId('tabelMonitorIgd');
     if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4">Menyinkronkan data IGD...</td></tr>';
-    let result = await supabase.from('monitoring_igd').select(columns)
+    let result = await supabase.from('monitoring_igd').select(extendedColumns)
       .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
-    if (result.error && /status_bed|bed_ready_at/i.test(result.error.message)) {
+    if (result.error && /status_bed|bed_ready_at|does not exist|column .*monitoring_igd\./i.test(result.error.message)) {
       statusBedSchemaReady = false;
       if (!migrationWarningShown) {
         migrationWarningShown = true;
-        notify('Jalankan supabase-mpp-migration.sql untuk mengaktifkan status bed.', 'error');
+        notify('Jalankan supabase-mpp-migration.sql untuk mengaktifkan status bed dan kolom IGD terbaru.', 'error');
       }
-      const legacyColumns = columns.split(',').filter((column) => !['status_bed', 'bed_ready_at'].includes(column)).join(',');
       result = await supabase.from('monitoring_igd').select(legacyColumns)
         .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
     } else if (!result.error) {
@@ -218,7 +232,14 @@
       const bedStatusCell = canManageBedStatus(row) && !row.bangsal_tujuan && statusBedSchemaReady
         ? `<div class="bed-status-control"><select class="form-select form-select-sm" data-bed-status aria-label="Status bed untuk ${escapeHtml(row.nama_pasien)}">${bedStatuses.map((value) => `<option value="${value}" ${value === bedStatus ? 'selected' : ''}>${value}</option>`).join('')}</select><div class="bed-status-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-action="save-bed-status" data-id="${escapeHtml(row.id)}">Simpan Status</button><button type="button" class="btn btn-sm btn-success" data-action="mark-bed-ready" data-id="${escapeHtml(row.id)}" ${bedStatus === readyBedStatus ? 'disabled' : ''}>Tandai Kamar Siap</button></div></div>`
         : `<span class="badge ${bedStatus === readyBedStatus ? 'bg-success' : 'bg-secondary'}">${escapeHtml(statusBedSchemaReady ? bedStatus : 'Migrasi status bed diperlukan')}</span>`;
-      const mppNotes = [row.koordinasi_kepala_ruang && `Ka. Ruang: ${row.koordinasi_kepala_ruang}`, row.koordinasi_dpjp && `DPJP: ${row.koordinasi_dpjp}`, row.koordinasi_ibs && `IBS: ${row.koordinasi_ibs}`, row.koordinasi_lab && `Lab: ${row.koordinasi_lab}`, row.koordinasi_radiologi && `Radiologi: ${row.koordinasi_radiologi}`].filter(Boolean).join(' · ') || '-';
+      const mppNotes = [
+        (row.koordinasi || row.koordinasi_kepala_ruang) && `Koordinasi: ${row.koordinasi || row.koordinasi_kepala_ruang}`,
+        (row.komunikasi || row.koordinasi_dpjp) && `Komunikasi: ${row.komunikasi || row.koordinasi_dpjp}`,
+        (row.kolaborasi || row.koordinasi_ibs) && `Kolaborasi: ${row.kolaborasi || row.koordinasi_ibs}`,
+        (row.fasilitasi || row.fasilitas) && `Fasilitasi: ${row.fasilitasi || row.fasilitas}`,
+        (row.edukasi || row.koordinasi_lab) && `Edukasi: ${row.edukasi || row.koordinasi_lab}`,
+        (row.advokasi || row.koordinasi_radiologi) && `Advokasi: ${row.advokasi || row.koordinasi_radiologi}`
+      ].filter(Boolean).join(' · ') || '-';
       const actions = role === 'admisi'
         ? '<span class="small text-muted">Monitor</span>'
         : `<button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit"><i class="fas fa-edit"></i></button><button type="button" class="btn btn-sm btn-outline-success" data-action="wa" data-id="${escapeHtml(row.id)}" title="WhatsApp"><i class="fab fa-whatsapp"></i></button><button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${escapeHtml(row.id)}" title="Hapus"><i class="fas fa-trash-alt"></i></button>`;
@@ -431,9 +452,30 @@
         const id = text(`selectPasienTahap${stage}`);
         if (!id) throw new Error('Pilih pasien terlebih dahulu.');
         const row = stage === 2
-          ? { nomor_bed: text('igdNomorBed'), nama_dpjp: text('igdNamaDpjp') }
+          ? {
+              nomor_bed: text('igdNomorBed'),
+              nama_dpjp: multiText('igdNamaDpjp') || null,
+              lab_status: text('igdLaboratStatus') || null,
+              radiologi_status: text('igdRadiologiStatus') || null,
+              akomodasi_status: text('igdAkomodasiStatus') || null,
+              visit_dpjp_status: text('igdVisitDpjpStatus') || null
+            }
           : stage === 3
-            ? { koordinasi_kepala_ruang: text('mppKoorKaru') || null, koordinasi_dpjp: text('mppKoorDpjp') || null, koordinasi_ibs: text('mppKoorIbs') || null, koordinasi_lab: text('mppKoorLab') || null, koordinasi_radiologi: text('mppKoorRad') || null, fasilitas: text('mppFasilitasi') || null, advokasi: text('mppAdvokasi') || null, edukasi: text('mppEdukasiRetensi') || null, akar_masalah: text('igdAkarMasalah') || null }
+            ? {
+                koordinasi: text('mppKoordinasi') || null,
+                komunikasi: text('mppKomunikasi') || null,
+                kolaborasi: text('mppKolaborasi') || null,
+                fasilitas: text('mppFasilitasi') || null,
+                fasilitasi: text('mppFasilitasi') || null,
+                advokasi: text('mppAdvokasi') || null,
+                edukasi: text('mppEdukasiRetensi') || null,
+                akar_masalah: text('igdAkarMasalah') || null,
+                koordinasi_kepala_ruang: text('mppKoordinasi') || null,
+                koordinasi_dpjp: text('mppKomunikasi') || null,
+                koordinasi_ibs: text('mppKolaborasi') || null,
+                koordinasi_lab: text('mppFasilitasi') || null,
+                koordinasi_radiologi: text('mppEdukasiRetensi') || null
+              }
             : makeTransferUpdate(id);
         ({ error } = await supabase.from('monitoring_igd').update(row).eq('id', id));
       }
@@ -508,15 +550,17 @@
     byId('igdJaminan').value = row.jaminan || '';
     byId('igdJamDaftar').value = timeText(row.jam_daftar) === '-' ? '' : timeText(row.jam_daftar);
     byId('igdNomorBed').value = row.nomor_bed || '';
-    byId('igdNamaDpjp').value = row.nama_dpjp || '';
-    byId('mppKoorKaru').value = row.koordinasi_kepala_ruang || '';
-    byId('mppKoorDpjp').value = row.koordinasi_dpjp || '';
-    byId('mppKoorIbs').value = row.koordinasi_ibs || '';
-    byId('mppKoorLab').value = row.koordinasi_lab || '';
-    byId('mppKoorRad').value = row.koordinasi_radiologi || '';
-    byId('mppFasilitasi').value = row.fasilitas || '';
+    setMultiText('igdNamaDpjp', row.nama_dpjp || '');
+    byId('igdLaboratStatus').value = row.lab_status || row.koordinasi_lab || '';
+    byId('igdRadiologiStatus').value = row.radiologi_status || row.koordinasi_radiologi || '';
+    byId('igdAkomodasiStatus').value = row.akomodasi_status || '';
+    byId('igdVisitDpjpStatus').value = row.visit_dpjp_status || '';
+    byId('mppKoordinasi').value = row.koordinasi || row.koordinasi_kepala_ruang || '';
+    byId('mppKomunikasi').value = row.komunikasi || row.koordinasi_dpjp || '';
+    byId('mppKolaborasi').value = row.kolaborasi || row.koordinasi_ibs || '';
+    byId('mppFasilitasi').value = row.fasilitasi || row.fasilitas || '';
     byId('mppAdvokasi').value = row.advokasi || '';
-    byId('mppEdukasiRetensi').value = row.edukasi || '';
+    byId('mppEdukasiRetensi').value = row.edukasi || row.koordinasi_lab || '';
     byId('igdAkarMasalah').value = row.akar_masalah || '';
     byId('igdPindahBangsal').value = row.bangsal_tujuan || '';
     byId('igdKeteranganTunggu').value = row.waktu_tunggu || '';
@@ -545,9 +589,13 @@
   function showDetails(row) {
     window.alert([
       `Nama: ${row.nama_pasien || '-'}`, `No. RM: ${row.no_rm || '-'}`,
-      `IBS: ${row.koordinasi_ibs || '-'}`, `Laboratorium: ${row.koordinasi_lab || '-'}`,
-      `Radiologi: ${row.koordinasi_radiologi || '-'}`, `Fasilitasi: ${row.fasilitas || '-'}`,
-      `Advokasi: ${row.advokasi || '-'}`, `Edukasi: ${row.edukasi || '-'}`
+      `Koordinasi: ${row.koordinasi || row.koordinasi_kepala_ruang || '-'}`,
+      `Komunikasi: ${row.komunikasi || row.koordinasi_dpjp || '-'}`,
+      `Kolaborasi: ${row.kolaborasi || row.koordinasi_ibs || '-'}`,
+      `Fasilitasi: ${row.fasilitasi || row.fasilitas || '-'}`,
+      `Edukasi: ${row.edukasi || row.koordinasi_lab || '-'}`,
+      `Advokasi: ${row.advokasi || row.koordinasi_radiologi || '-'}`,
+      `Akar masalah: ${row.akar_masalah || '-'}`
     ].join('\n'));
   }
 

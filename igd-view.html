@@ -52,7 +52,45 @@
       <h3 class="accordion-header"><button class="accordion-button collapsed bg-warning bg-opacity-10 text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTahap2" aria-expanded="false"><i class="fas fa-stethoscope me-2 text-warning"></i>2. Pelayanan IGD</button></h3>
       <div id="collapseTahap2" class="accordion-collapse collapse" data-bs-parent="#accordionIgdFlow"><div class="accordion-body bg-light">
         <form id="formIgdTahap2"><div class="alert alert-warning p-2 mb-3"><label for="selectPasienTahap2" class="fw-bold">Pilih Pasien (Dari Pendaftaran)</label><select id="selectPasienTahap2" class="form-select border-warning" required><option value="">Pilih pasien IGD</option></select></div>
-          <div class="row"><div class="col-md-6 mb-3"><label for="igdNomorBed" class="form-label">Nomor Bed IGD</label><input type="text" id="igdNomorBed" class="form-control border-warning" placeholder="Misal: Bed 5" required></div><div class="col-md-6 mb-3"><label for="igdNamaDpjp" class="form-label">Nama DPJP IGD</label><input type="text" id="igdNamaDpjp" class="form-control border-warning" placeholder="Nama DPJP" required></div></div>
+          <div class="row">
+            <div class="col-md-6 mb-3"><label for="igdNomorBed" class="form-label">Nomor Bed IGD</label><input type="text" id="igdNomorBed" class="form-control border-warning" placeholder="Misal: Bed 5" required></div>
+            <div class="col-md-6 mb-3"><label for="igdNamaDpjp" class="form-label">DPJP IGD</label><select id="igdNamaDpjp" class="form-select border-warning" multiple size="8" required>
+              <option value="dr. Galih Dwi Jayanto, Sp.PD">dr. Galih Dwi Jayanto, Sp.PD</option>
+              <option value="dr. Dandy Firmansyah, Sp.PD">dr. Dandy Firmansyah, Sp.PD</option>
+              <option value="dr. Antonius Priyohartono, Sp.PD">dr. Antonius Priyohartono, Sp.PD</option>
+              <option value="dr. Rony Kendyartanto, Sp.PD">dr. Rony Kendyartanto, Sp.PD</option>
+              <option value="dr. Nungky Nugroho, Sp.OG">dr. Nungky Nugroho, Sp.OG</option>
+              <option value="dr. Danu Lestariyanto, Sp.OG">dr. Danu Lestariyanto, Sp.OG</option>
+              <option value="dr. Ricky Bernadi, Sp.OG">dr. Ricky Bernadi, Sp.OG</option>
+              <option value="dr. Afriliandryf, Sp.B">dr. Afriliandryf, Sp.B</option>
+              <option value="dr. Pramudyo H, Sp.B">dr. Pramudyo H, Sp.B</option>
+              <option value="dr. Wawan Suci, Sp.B">dr. Wawan Suci, Sp.B</option>
+              <option value="dr. Irsalina Nur S, Sp.JP, FIHA">dr. Irsalina Nur S, Sp.JP, FIHA</option>
+              <option value="dr. Dadang Arif P, Sp.U">dr. Dadang Arif P, Sp.U</option>
+              <option value="dr. Faisal Farhan A, Sp.U">dr. Faisal Farhan A, Sp.U</option>
+              <option value="dr. Resa Gratya, Sp.A, M.Kes">dr. Resa Gratya, Sp.A, M.Kes</option>
+              <option value="dr. Arta Christin Y, Sp.A">dr. Arta Christin Y, Sp.A</option>
+              <option value="dr. Juliani, M.Kes, Sp.A(K)">dr. Juliani, M.Kes, Sp.A(K)</option>
+              <option value="dr. M. Arikhan O, Sp.BA">dr. M. Arikhan O, Sp.BA</option>
+              <option value="dr. Wildan Ferdian, Sp.P">dr. Wildan Ferdian, Sp.P</option>
+              <option value="dr. Betagia S Wisesa, Sp.KG">dr. Betagia S Wisesa, Sp.KG</option>
+              <option value="dr. Ronaa Nuqtho, Sp.OT">dr. Ronaa Nuqtho, Sp.OT</option>
+              <option value="dr. Morteza Bahesdhi, Sp.OT">dr. Morteza Bahesdhi, Sp.OT</option>
+              <option value="dr. Mutiah M, Sp.N">dr. Mutiah M, Sp.N</option>
+              <option value="dr. H. Soleh, Sp.N, FINA, ME">dr. H. Soleh, Sp.N, FINA, ME</option>
+              <option value="dr. Ganjar S, Sp.M">dr. Ganjar S, Sp.M</option>
+              <option value="dr. Ida Ayu P, Sp.K.F.R., AIFO-K">dr. Ida Ayu P, Sp.K.F.R., AIFO-K</option>
+              <option value="dr. Jeffrey Giantoro, Sp.DVE">dr. Jeffrey Giantoro, Sp.DVE</option>
+              <option value="dr. Masyi Wimy J, Sp.KJ">dr. Masyi Wimy J, Sp.KJ</option>
+              <option value="dr. Therry Tulus, Sp.THT-KL">dr. Therry Tulus, Sp.THT-KL</option>
+              <option value="dr. Nur Hamam, MMR">dr. Nur Hamam, MMR</option>
+              <option value="dr. Novianto Kurniawan, M.Sc, Sp.An.">dr. Novianto Kurniawan, M.Sc, Sp.An.</option>
+            </select></div>
+            <div class="col-md-3 mb-3"><label for="igdLaboratStatus" class="form-label">Laborat</label><select id="igdLaboratStatus" class="form-select border-warning"><option value="">Pilih</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option></select></div>
+            <div class="col-md-3 mb-3"><label for="igdRadiologiStatus" class="form-label">Radiologi</label><select id="igdRadiologiStatus" class="form-select border-warning"><option value="">Pilih</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option></select></div>
+            <div class="col-md-3 mb-3"><label for="igdAkomodasiStatus" class="form-label">Akomodasi</label><select id="igdAkomodasiStatus" class="form-select border-warning"><option value="">Pilih</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option></select></div>
+            <div class="col-md-3 mb-3"><label for="igdVisitDpjpStatus" class="form-label">Visit DPJP</label><select id="igdVisitDpjpStatus" class="form-select border-warning"><option value="">Pilih</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option></select></div>
+          </div>
           <button type="submit" class="btn btn-warning w-100 fw-bold" id="btnSimpanTahap2">Update Pelayanan IGD</button><div id="alertTahap2" class="alert mt-2 d-none text-center fw-bold"></div>
         </form>
       </div></div>
@@ -63,16 +101,14 @@
       <div id="collapseTahap3" class="accordion-collapse collapse" data-bs-parent="#accordionIgdFlow"><div class="accordion-body bg-light">
         <form id="formIgdTahap3"><div class="alert alert-info p-2 mb-3"><label for="selectPasienTahap3" class="fw-bold">Pilih Pasien IGD</label><select id="selectPasienTahap3" class="form-select border-info" required><option value="">Pilih pasien IGD</option></select></div>
           <div class="row"><div class="col-12 mb-2"><label class="fw-bold border-bottom pb-1 w-100">Hasil Koordinasi Lintas Unit</label></div>
-            <div class="col-md-4 col-lg-2 mb-3"><label for="mppKoorKaru" class="form-label small">Ka. Ruang (KarU)</label><input id="mppKoorKaru" class="form-control border-info" placeholder="Catatan"></div>
-            <div class="col-md-4 col-lg-2 mb-3"><label for="mppKoorDpjp" class="form-label small">DPJP Utama</label><input id="mppKoorDpjp" class="form-control border-info" placeholder="Catatan"></div>
-            <div class="col-md-4 col-lg-2 mb-3"><label for="mppKoorIbs" class="form-label small">IBS</label><input id="mppKoorIbs" class="form-control border-info" placeholder="Catatan"></div>
-            <div class="col-md-6 col-lg-3 mb-3"><label for="mppKoorLab" class="form-label small">Instalasi Laborat</label><input id="mppKoorLab" class="form-control border-info" placeholder="Catatan"></div>
-            <div class="col-md-6 col-lg-3 mb-3"><label for="mppKoorRad" class="form-label small">Radiologi</label><input id="mppKoorRad" class="form-control border-info" placeholder="Catatan"></div>
-            <div class="col-12 mb-2 mt-2"><label class="fw-bold border-bottom pb-1 w-100">Pendampingan & Evaluasi</label></div>
-            <div class="col-md-3 mb-3"><label for="mppFasilitasi" class="form-label">Fasilitasi</label><input id="mppFasilitasi" class="form-control border-info" placeholder="Fasilitasi pelayanan"></div>
-            <div class="col-md-3 mb-3"><label for="mppAdvokasi" class="form-label">Advokasi</label><input id="mppAdvokasi" class="form-control border-info" placeholder="Advokasi keluarga"></div>
-            <div class="col-md-3 mb-3"><label for="mppEdukasiRetensi" class="form-label">Edukasi Retensi MPP</label><input id="mppEdukasiRetensi" class="form-control border-info" placeholder="Catatan edukasi"></div>
-            <div class="col-md-3 mb-3"><label for="igdAkarMasalah" class="form-label fw-bold text-danger">Akar Masalah Stagnansi</label><select id="igdAkarMasalah" class="form-select border-danger"><option value="">Tidak ada kendala</option><option>Menunggu Bed/Kamar Penuh</option><option>Menunggu Hasil Laboratorium</option><option>Menunggu Hasil Radiologi</option><option>Menunggu Instruksi/Visit DPJP</option><option>Perbaikan Keadaan Umum (KU) Pasien</option><option>Kendala Administrasi/Jaminan</option><option>Menunggu Persetujuan Keluarga (IC)</option><option>Tindakan Medis Berkelanjutan di IGD</option></select></div>
+            <div class="col-md-4 col-lg-2 mb-3"><label for="mppKoordinasi" class="form-label small">Koordinasi</label><input id="mppKoordinasi" class="form-control border-info" placeholder="Catatan koordinasi"></div>
+            <div class="col-md-4 col-lg-2 mb-3"><label for="mppKomunikasi" class="form-label small">Komunikasi</label><input id="mppKomunikasi" class="form-control border-info" placeholder="Catatan komunikasi"></div>
+            <div class="col-md-4 col-lg-2 mb-3"><label for="mppKolaborasi" class="form-label small">Kolaborasi</label><input id="mppKolaborasi" class="form-control border-info" placeholder="Catatan kolaborasi"></div>
+            <div class="col-md-4 col-lg-2 mb-3"><label for="mppFasilitasi" class="form-label small">Fasilitasi</label><input id="mppFasilitasi" class="form-control border-info" placeholder="Fasilitasi pelayanan"></div>
+            <div class="col-md-4 col-lg-2 mb-3"><label for="mppEdukasiRetensi" class="form-label small">Edukasi</label><input id="mppEdukasiRetensi" class="form-control border-info" placeholder="Catatan edukasi"></div>
+            <div class="col-md-4 col-lg-2 mb-3"><label for="mppAdvokasi" class="form-label small">Advokasi</label><input id="mppAdvokasi" class="form-control border-info" placeholder="Advokasi keluarga"></div>
+            <div class="col-12 mb-2 mt-2"><label class="fw-bold border-bottom pb-1 w-100">Evaluasi Stagnansi</label></div>
+            <div class="col-md-12 mb-3"><label for="igdAkarMasalah" class="form-label fw-bold text-danger">Akar Masalah Stagnansi</label><select id="igdAkarMasalah" class="form-select border-danger"><option value="">Tidak ada kendala</option><option>Menunggu Bed/Kamar Penuh</option><option>Menunggu Hasil Laboratorium</option><option>Menunggu Hasil Radiologi</option><option>Menunggu Instruksi/Visit DPJP</option><option>Perbaikan Keadaan Umum (KU) Pasien</option><option>Kendala Administrasi/Jaminan</option><option>Menunggu Persetujuan Keluarga (IC)</option><option>Tindakan Medis Berkelanjutan di IGD</option></select></div>
           </div>
           <button type="submit" class="btn btn-info text-white w-100 fw-bold" id="btnSimpanTahap3">Update Tindak Lanjut MPP</button><div id="alertTahap3" class="alert mt-2 d-none text-center fw-bold"></div>
         </form>

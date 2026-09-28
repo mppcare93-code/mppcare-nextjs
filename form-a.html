@@ -1,12 +1,18 @@
 <div class="card shadow-sm border-0 p-4 bg-light">
   <div class="row mb-4 p-3 bg-white border border-info rounded shadow-sm align-items-center">
     <div class="col-md-5">
-      <label for="selectPasienFormA" class="fw-bold text-info"><i class="fas fa-search me-1"></i>Buat Baru (Pilih Pasien dari Antrian TL):</label>
-      <select id="selectPasienFormA" class="form-select border-info fw-bold"><option value="">Pilih Pasien (Hanya Yang Selesai Di-TL MPP)</option></select>
+      <label class="fw-bold text-info d-block mb-2"><i class="fas fa-user-check me-1"></i>Pasien Form A (Hanya Yang Sudah Di-TL)</label>
+      <button id="btnPilihPasienFormA" type="button" class="btn btn-outline-info fw-bold shadow-sm"><i class="fas fa-folder-open me-2"></i>Buka Data</button>
+      <select id="selectPasienFormA" class="d-none" aria-hidden="true"><option value="">Pilih pasien</option></select>
     </div>
     <div class="col-md-7 text-end mt-3 mt-md-0">
-      <button id="btnBukaDataFormA" type="button" class="btn btn-outline-dark fw-bold shadow-sm me-1"><i class="fas fa-folder-open me-2"></i>Buka Data Tersimpan</button>
+      <button id="btnBukaDataFormA" type="button" class="btn btn-outline-dark fw-bold shadow-sm me-1"><i class="fas fa-archive me-2"></i>Data Tersimpan</button>
       <button id="btnSimpanDataFormA" type="button" class="btn btn-primary fw-bold shadow-sm me-1"><i class="fas fa-save me-2"></i>Simpan Form</button>
+      <label class="d-inline-flex align-items-center me-1 mb-0 fw-bold text-secondary" for="selectUkuranCetakFormA"><i class="fas fa-file me-1"></i>Ukuran</label>
+      <select id="selectUkuranCetakFormA" class="form-select form-select-sm d-inline-block w-auto shadow-sm me-1">
+        <option value="A4" selected>A4</option>
+        <option value="F4">F4</option>
+      </select>
       <button id="btnCetakFormA" type="button" class="btn btn-danger fw-bold shadow-sm"><i class="fas fa-file-pdf me-2"></i>Cetak / Simpan PDF</button>
     </div>
   </div>
@@ -135,6 +141,28 @@
           <option value="Priyo Sulistiyono, S.Kep., Ns">Priyo Sulistiyono, S.Kep., Ns</option>
           <option value="Wahyu Dyah Setyaningrum, S.Kep., Ns">Wahyu Dyah Setyaningrum, S.Kep., Ns</option>
         </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalPilihPasienFormA" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white"><h5 class="modal-title fw-bold"><i class="fas fa-user-md me-2"></i>Pilih Pasien Form A</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button></div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-6"><input id="filterNamaFormA" type="text" class="form-control" placeholder="Cari nama pasien..." /></div>
+          <div class="col-md-6"><input id="filterRmFormA" type="text" class="form-control" placeholder="Cari nomor RM..." /></div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>Nama Pasien</th><th>No. RM</th><th>Ruang</th><th>MPP Tujuan</th><th class="text-center">Aksi</th></tr>
+            </thead>
+            <tbody id="bodyPilihPasienFormA"><tr><td colspan="5" class="text-center py-4">Memuat data pasien...</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

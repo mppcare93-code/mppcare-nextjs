@@ -10,6 +10,7 @@
     if (!area) return;
     wired = true;
     document.getElementById('selectPasienFormA').addEventListener('change', loadSelectedActivation);
+    document.getElementById('btnPilihPasienFormA').addEventListener('click', openPatientPicker);
     document.getElementById('btnSimpanDataFormA').addEventListener('click', saveFormA);
     document.getElementById('btnBukaDataFormA').addEventListener('click', showSavedForms);
     document.getElementById('btnCetakFormA').addEventListener('click', exportFormA);
@@ -18,7 +19,62 @@
       const button = event.target.closest('[data-form-id]');
       if (button) loadFormA(button.dataset.formId);
     });
+    document.getElementById('filterNamaFormA')?.addEventListener('input', renderPatientPickerRows);
+    document.getElementById('filterRmFormA')?.addEventListener('input', renderPatientPickerRows);
     wireSignaturePad();
+  }
+
+  function getCompletedActivations() {
+    return (app.state.activations || []).filter((row) => row.status === 'Selesai');
+  }
+
+  function renderPatientPickerRows() {
+    const body = document.getElementById('bodyPilihPasienFormA');
+    if (!body) return;
+    const queryNama = (document.getElementById('filterNamaFormA')?.value || '').trim().toLowerCase();
+    const queryRm = (document.getElementById('filterRmFormA')?.value || '').trim().toLowerCase();
+    const rows = getCompletedActivations().filter((row) => {
+      const nama = (row.nama_pasien || '').toLowerCase();
+      const rm = (row.no_rm || '').toLowerCase();
+      return (!queryNama || nama.includes(queryNama)) && (!queryRm || rm.includes(queryRm));
+    });
+    body.replaceChildren();
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Tidak ada pasien yang sudah selesai di-TL sesuai filter.</td></tr>';
+      return;
+    }
+    rows.forEach((row) => {
+      const tr = document.createElement('tr');
+      const nama = document.createElement('td');
+      nama.textContent = row.nama_pasien || '-';
+      const rm = document.createElement('td');
+      rm.textContent = row.no_rm || '-';
+      const ruang = document.createElement('td');
+      ruang.textContent = row.ruang || '-';
+      const tujuan = document.createElement('td');
+      tujuan.textContent = row.mpp_tujuan || '-';
+      const action = document.createElement('td');
+      action.className = 'text-center';
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-sm btn-primary';
+      button.textContent = 'Pilih';
+      button.addEventListener('click', () => {
+        const select = document.getElementById('selectPasienFormA');
+        if (!select) return;
+        select.value = row.id;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPilihPasienFormA')).hide();
+      });
+      action.append(button);
+      tr.append(nama, rm, ruang, tujuan, action);
+      body.append(tr);
+    });
+  }
+
+  function openPatientPicker() {
+    renderPatientPickerRows();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPilihPasienFormA')).show();
   }
 
   function onActivations(activations) {
@@ -26,9 +82,10 @@
     if (!select || !app.canMpp(app.state.role)) return;
     const selectedId = select.value;
     const completed = activations.filter((row) => row.status === 'Selesai');
-    select.replaceChildren(new Option('Pilih pasien yang sudah selesai di-TL', ''));
+    select.replaceChildren(new Option('Pilih pasien', ''));
     completed.forEach((row) => select.add(new Option(`${row.nama_pasien || '-'} (${row.no_rm || '-'})`, row.id)));
     if (completed.some((row) => row.id === selectedId)) select.value = selectedId;
+    renderPatientPickerRows();
   }
 
   async function loadSelectedActivation(event) {
@@ -199,13 +256,26 @@
 
   function exportFormA() {
     if (!window.html2pdf) return app.setAlert('alertFormA', 'Library PDF belum dimuat.');
+    const paper = document.getElementById('selectUkuranCetakFormA')?.value || 'A4';
+    const isF4 = paper === 'F4';
+    const area = document.getElementById('areaPrintFormA');
+    if (!area) return;
+
+    area.style.width = '100%';
+    area.style.maxWidth = '100%';
+    area.style.boxSizing = 'border-box';
+
     window.html2pdf().set({
-      margin: 8,
+      margin: isF4 ? { top: 8, right: 7, bottom: 8, left: 7 } : { top: 6, right: 6, bottom: 6, left: 6 },
       filename: `Form-A-${(document.getElementById('fa_rm').textContent || 'pasien').replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    }).from(document.getElementById('areaPrintFormA')).save();
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: {
+        unit: 'mm',
+        format: isF4 ? [210, 330] : 'a4',
+        orientation: 'portrait'
+      }
+    }).from(area).save();
   }
 
   function wireSignaturePad() {

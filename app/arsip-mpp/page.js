@@ -93,7 +93,7 @@ export default function ArsipMppPage() {
             <li data-role="ppa,mpp,admin"><a className="nav-link" href="/workspace-mpp"><i className="fas fa-briefcase-medical" />Ruang Kerja MPP</a></li>
             <li data-role="ppa,mpp,admin"><a className="nav-link active" href="/arsip-mpp"><i className="fas fa-folder-open" />Arsip &amp; Riwayat</a></li>
             <li data-role="ppa,admin"><a className="nav-link" href="/?view=view-form-ppa"><i className="fas fa-file-medical" />Form Aktivasi PPA</a></li>
-            <li data-role="mpp,admin"><a className="nav-link text-warning fw-bold" href="/workspace-mpp#view-tindak-lanjut"><i className="fas fa-user-md" />Tindak Lanjut MPP <i className="fas fa-lock ms-2 small" /></a></li>
+            <li data-role="mpp,admin"><a className="nav-link text-warning fw-bold" href="/workspace-mpp#view-tindak-lanjut"><i className="fas fa-user-md" />Tindak Lanjut MPP</a></li>
             <li data-role="mpp,admin"><a className="nav-link text-info fw-bold" href="/?view=view-form-a"><i className="fas fa-print" />Cetak Form A (MPP)</a></li>
             <li data-role="ppa,mpp,admin,admisi"><a className="nav-link" href="/?view=view-igd"><i className="fas fa-ambulance" />Dashboard Stagnansi IGD</a></li>
           </ul>
@@ -142,7 +142,7 @@ export default function ArsipMppPage() {
         <div className="modal-dialog modal-dialog-centered modal-lg"><div className="modal-content border-0 shadow-lg">
           <div className="modal-header bg-success text-white"><h2 className="modal-title h5 fw-bold" id="modalDetailMppLabel"><i className="fas fa-file-medical-alt me-2" />Detail Tindak Lanjut MPP</h2><button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup" /></div>
           <div className="modal-body bg-light"><div className="card mb-3 border-success"><div className="card-header bg-success bg-opacity-10 text-success fw-bold">Analisis Informasi</div><div className="card-body"><p id="teksModalAnalisis" className="mb-0 text-dark small" style={{ whiteSpace: 'pre-wrap' }} /></div></div><div className="card mb-3 border-primary"><div className="card-header bg-primary bg-opacity-10 text-primary fw-bold">Plan of Care MPP</div><div className="card-body"><p id="teksModalPlanOfCare" className="mb-0 text-dark" style={{ whiteSpace: 'pre-wrap' }} /></div></div><p id="teksModalKeterangan" className="small text-muted" /></div>
-          <div className="modal-footer bg-white"><button type="button" className="btn btn-secondary fw-bold" data-bs-dismiss="modal">Tutup</button></div>
+          <div className="modal-footer bg-white justify-content-between"><button type="button" className="btn btn-outline-danger d-none fw-bold" id="deleteFollowUpButton"><i className="fas fa-trash-alt me-1" />Hapus</button><button type="button" className="btn btn-secondary fw-bold" data-bs-dismiss="modal">Tutup</button></div>
         </div></div>
       </div>
     </>

@@ -3,7 +3,8 @@
   if (!supabase) throw new Error('Supabase client belum siap untuk modul IGD.');
   const criticalAlarm = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3');
 
-  const columns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input';
+  const legacyColumns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input';
+  const extendedColumns = `${legacyColumns},koordinasi,komunikasi,kolaborasi,fasilitasi,lab_status,radiologi_status,akomodasi_status,visit_dpjp_status,status_bed,bed_ready_at`;
   let records = [];
   let filter = 'inden';
   let mode = 'tabel';
@@ -26,6 +27,15 @@
   const dateText = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('id-ID') : '-';
   const timeText = (value) => value ? String(value).slice(0, 5) : '-';
   const text = (id) => byId(id)?.value?.trim() || '';
+  const multiText = (id) => Array.from(byId(id)?.selectedOptions || []).map((option) => option.value).filter(Boolean).join(', ') || '';
+  const setMultiText = (id, value = '') => {
+    const select = byId(id);
+    if (!select) return;
+    const values = String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
+    Array.from(select.options).forEach((option) => {
+      option.selected = values.includes(option.value);
+    });
+  };
 
   function alertStage(id, message, type = 'success') {
     const target = byId(id);
@@ -37,8 +47,13 @@
 
   function getStage(row) {
     if (row.bangsal_tujuan) return 'pindah';
-    if (row.koordinasi_kepala_ruang || row.koordinasi_dpjp || row.koordinasi_ibs || row.koordinasi_lab || row.koordinasi_radiologi || row.fasilitas || row.advokasi || row.edukasi || row.akar_masalah) return 'mpp';
-    if (row.nomor_bed || row.nama_dpjp) return 'pelayanan';
+    const hasMppProgress = [
+      row.koordinasi, row.komunikasi, row.kolaborasi, row.fasilitasi, row.edukasi, row.advokasi,
+      row.koordinasi_kepala_ruang, row.koordinasi_dpjp, row.koordinasi_ibs, row.koordinasi_lab, row.koordinasi_radiologi,
+      row.fasilitas, row.akar_masalah
+    ].some(Boolean);
+    if (hasMppProgress) return 'mpp';
+    if (row.nomor_bed || row.nama_dpjp || row.lab_status || row.radiologi_status || row.akomodasi_status || row.visit_dpjp_status) return 'pelayanan';
     return 'inden';
   }
 
@@ -71,8 +86,13 @@
   async function refresh() {
     const tbody = byId('tabelMonitorIgd');
     if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">Menyinkronkan data IGD...</td></tr>';
-    const { data, error } = await supabase.from('monitoring_igd').select(columns)
+    let result = await supabase.from('monitoring_igd').select(extendedColumns)
       .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
+    if (result.error && /column .*monitoring_igd\.|does not exist/i.test(result.error.message)) {
+      result = await supabase.from('monitoring_igd').select(legacyColumns)
+        .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
+    }
+    const { data, error } = result;
     if (error) {
       if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">Gagal memuat data: ${escapeHtml(error.message)}</td></tr>`;
       return;
@@ -165,7 +185,14 @@
       const status = row.bangsal_tujuan
         ? `<span class="badge bg-success d-block mb-1">Pindah: ${escapeHtml(row.bangsal_tujuan)}</span><small>${dateText(row.tanggal_pindah)} (${timeText(row.jam_pindah)})</small>`
         : `<span class="badge ${info.badge}">${info.hours >= 4 ? 'Kritis · ' : 'Inden · '}${info.label}</span>`;
-      const mppNotes = [row.koordinasi_kepala_ruang && `Ka. Ruang: ${row.koordinasi_kepala_ruang}`, row.koordinasi_dpjp && `DPJP: ${row.koordinasi_dpjp}`, row.koordinasi_ibs && `IBS: ${row.koordinasi_ibs}`, row.koordinasi_lab && `Lab: ${row.koordinasi_lab}`, row.koordinasi_radiologi && `Radiologi: ${row.koordinasi_radiologi}`].filter(Boolean).join(' · ') || '-';
+      const mppNotes = [
+        (row.koordinasi || row.koordinasi_kepala_ruang) && `Koordinasi: ${row.koordinasi || row.koordinasi_kepala_ruang}`,
+        (row.komunikasi || row.koordinasi_dpjp) && `Komunikasi: ${row.komunikasi || row.koordinasi_dpjp}`,
+        (row.kolaborasi || row.koordinasi_ibs) && `Kolaborasi: ${row.kolaborasi || row.koordinasi_ibs}`,
+        (row.fasilitasi || row.fasilitas) && `Fasilitasi: ${row.fasilitasi || row.fasilitas}`,
+        (row.edukasi || row.koordinasi_lab) && `Edukasi: ${row.edukasi || row.koordinasi_lab}`,
+        (row.advokasi || row.koordinasi_radiologi) && `Advokasi: ${row.advokasi || row.koordinasi_radiologi}`
+      ].filter(Boolean).join(' · ') || '-';
       return `<tr class="${info.row}"><td class="text-center fw-bold">${index + 1}</td><td>${dateText(row.tanggal)}<br><strong>${escapeHtml(row.no_rm)}</strong></td><td class="fw-bold">${escapeHtml(row.nama_pasien)}</td><td><span class="badge bg-secondary">${escapeHtml(row.jaminan || '-')}</span><br><small>IC: ${escapeHtml(row.informed_consent || '-')}</small></td><td><strong class="d-block">${escapeHtml(row.inden_bangsal || '-')}</strong><small>Jam: ${timeText(row.jam_inden || row.jam_daftar)}</small><br>${status}</td><td><small class="d-block">Bed: <b>${escapeHtml(row.nomor_bed || '-')}</b></small><small>DPJP: <b>${escapeHtml(row.nama_dpjp || '-')}</b></small></td><td><small>${escapeHtml(mppNotes)}</small><br><button type="button" class="btn btn-sm btn-outline-info mt-1" data-action="details" data-id="${row.id}">Detail</button></td><td><small class="text-danger fw-bold">${escapeHtml(row.akar_masalah || '-')}</small></td><td class="igd-row-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${row.id}" title="Edit"><i class="fas fa-edit"></i></button><button type="button" class="btn btn-sm btn-outline-success" data-action="wa" data-id="${row.id}" title="WhatsApp"><i class="fab fa-whatsapp"></i></button><button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.id}" title="Hapus"><i class="fas fa-trash-alt"></i></button></td></tr>`;
     }).join('');
   }
@@ -312,9 +339,30 @@
         const id = text(`selectPasienTahap${stage}`);
         if (!id) throw new Error('Pilih pasien terlebih dahulu.');
         const row = stage === 2
-          ? { nomor_bed: text('igdNomorBed'), nama_dpjp: text('igdNamaDpjp') }
+          ? {
+              nomor_bed: text('igdNomorBed'),
+              nama_dpjp: multiText('igdNamaDpjp') || null,
+              lab_status: text('igdLaboratStatus') || null,
+              radiologi_status: text('igdRadiologiStatus') || null,
+              akomodasi_status: text('igdAkomodasiStatus') || null,
+              visit_dpjp_status: text('igdVisitDpjpStatus') || null
+            }
           : stage === 3
-            ? { koordinasi_kepala_ruang: text('mppKoorKaru') || null, koordinasi_dpjp: text('mppKoorDpjp') || null, koordinasi_ibs: text('mppKoorIbs') || null, koordinasi_lab: text('mppKoorLab') || null, koordinasi_radiologi: text('mppKoorRad') || null, fasilitas: text('mppFasilitasi') || null, advokasi: text('mppAdvokasi') || null, edukasi: text('mppEdukasiRetensi') || null, akar_masalah: text('igdAkarMasalah') || null }
+            ? {
+                koordinasi: text('mppKoordinasi') || null,
+                komunikasi: text('mppKomunikasi') || null,
+                kolaborasi: text('mppKolaborasi') || null,
+                fasilitas: text('mppFasilitasi') || null,
+                fasilitasi: text('mppFasilitasi') || null,
+                advokasi: text('mppAdvokasi') || null,
+                edukasi: text('mppEdukasiRetensi') || null,
+                akar_masalah: text('igdAkarMasalah') || null,
+                koordinasi_kepala_ruang: text('mppKoordinasi') || null,
+                koordinasi_dpjp: text('mppKomunikasi') || null,
+                koordinasi_ibs: text('mppKolaborasi') || null,
+                koordinasi_lab: text('mppFasilitasi') || null,
+                koordinasi_radiologi: text('mppEdukasiRetensi') || null
+              }
             : makeTransferUpdate(id);
         ({ error } = await supabase.from('monitoring_igd').update(row).eq('id', id));
       }
@@ -367,15 +415,17 @@
     byId('igdJaminan').value = row.jaminan || '';
     byId('igdJamDaftar').value = timeText(row.jam_daftar) === '-' ? '' : timeText(row.jam_daftar);
     byId('igdNomorBed').value = row.nomor_bed || '';
-    byId('igdNamaDpjp').value = row.nama_dpjp || '';
-    byId('mppKoorKaru').value = row.koordinasi_kepala_ruang || '';
-    byId('mppKoorDpjp').value = row.koordinasi_dpjp || '';
-    byId('mppKoorIbs').value = row.koordinasi_ibs || '';
-    byId('mppKoorLab').value = row.koordinasi_lab || '';
-    byId('mppKoorRad').value = row.koordinasi_radiologi || '';
-    byId('mppFasilitasi').value = row.fasilitas || '';
+    setMultiText('igdNamaDpjp', row.nama_dpjp || '');
+    byId('igdLaboratStatus').value = row.lab_status || row.koordinasi_lab || '';
+    byId('igdRadiologiStatus').value = row.radiologi_status || row.koordinasi_radiologi || '';
+    byId('igdAkomodasiStatus').value = row.akomodasi_status || '';
+    byId('igdVisitDpjpStatus').value = row.visit_dpjp_status || '';
+    byId('mppKoordinasi').value = row.koordinasi || row.koordinasi_kepala_ruang || '';
+    byId('mppKomunikasi').value = row.komunikasi || row.koordinasi_dpjp || '';
+    byId('mppKolaborasi').value = row.kolaborasi || row.koordinasi_ibs || '';
+    byId('mppFasilitasi').value = row.fasilitasi || row.fasilitas || '';
     byId('mppAdvokasi').value = row.advokasi || '';
-    byId('mppEdukasiRetensi').value = row.edukasi || '';
+    byId('mppEdukasiRetensi').value = row.edukasi || row.koordinasi_lab || '';
     byId('igdAkarMasalah').value = row.akar_masalah || '';
     byId('igdPindahBangsal').value = row.bangsal_tujuan || '';
     byId('igdKeteranganTunggu').value = row.waktu_tunggu || '';

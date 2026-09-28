@@ -42,16 +42,24 @@ const queryBuatTabel = `
     -- Bagian pelayanan IGD
     nomor_bed VARCHAR(50),
     nama_dpjp VARCHAR(255),
+    lab_status VARCHAR(20),
+    radiologi_status VARCHAR(20),
+    akomodasi_status VARCHAR(20),
+    visit_dpjp_status VARCHAR(20),
 
     -- Bagian tindak lanjut MPP
+    koordinasi TEXT,
+    komunikasi TEXT,
+    kolaborasi TEXT,
+    fasilitasi TEXT,
+    edukasi TEXT,
+    advokasi TEXT,
     koordinasi_kepala_ruang TEXT,
     koordinasi_dpjp TEXT,
     koordinasi_ibs TEXT,
     koordinasi_lab TEXT,
     koordinasi_radiologi TEXT,
     fasilitas TEXT,
-    advokasi TEXT,
-    edukasi TEXT,
     akar_masalah TEXT,
 
     -- Bagian pindah bangsal dan evaluasi

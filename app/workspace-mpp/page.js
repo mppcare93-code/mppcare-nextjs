@@ -93,7 +93,7 @@ export default function WorkspaceMppPage() {
             <li data-role="ppa,mpp,admin"><a className="nav-link active" href="/workspace-mpp"><i className="fas fa-briefcase-medical" />Ruang Kerja MPP</a></li>
             <li data-role="ppa,mpp,admin"><a className="nav-link" href="/arsip-mpp"><i className="fas fa-folder-open" />Arsip &amp; Riwayat</a></li>
             <li data-role="ppa,admin"><a className="nav-link" href="/?view=view-form-ppa"><i className="fas fa-file-medical" />Form Aktivasi PPA</a></li>
-            <li data-role="mpp,admin"><a className="nav-link text-warning fw-bold" href="/workspace-mpp#view-tindak-lanjut"><i className="fas fa-user-md" />Tindak Lanjut MPP <i className="fas fa-lock ms-2 small" /></a></li>
+            <li data-role="mpp,admin"><a className="nav-link text-warning fw-bold" href="/workspace-mpp#view-tindak-lanjut"><i className="fas fa-user-md" />Tindak Lanjut MPP</a></li>
             <li data-role="mpp,admin"><a className="nav-link text-info fw-bold" href="/?view=view-form-a"><i className="fas fa-print" />Cetak Form A (MPP)</a></li>
             <li data-role="ppa,mpp,admin,admisi"><a className="nav-link" href="/?view=view-igd"><i className="fas fa-ambulance" />Dashboard Stagnansi IGD</a></li>
           </ul>
