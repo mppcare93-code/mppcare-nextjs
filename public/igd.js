@@ -4,7 +4,7 @@
   const criticalAlarm = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-software-interface-back-2575.mp3');
 
   const legacyColumns = 'id,tanggal,no_rm,nama_pasien,informed_consent,inden_bangsal,jam_inden,jaminan,jam_daftar,nomor_bed,nama_dpjp,koordinasi_kepala_ruang,koordinasi_dpjp,koordinasi_ibs,koordinasi_lab,koordinasi_radiologi,fasilitas,advokasi,edukasi,akar_masalah,bangsal_tujuan,tanggal_pindah,jam_pindah,waktu_tunggu,waktu_input';
-  const extendedColumns = `${legacyColumns},koordinasi,komunikasi,kolaborasi,fasilitasi,lab_status,radiologi_status,akomodasi_status,visit_dpjp_status,status_bed,bed_ready_at`;
+  const extendedColumns = `${legacyColumns},koordinasi,komunikasi,kolaborasi,fasilitasi,lab_status,radiologi_status,akomodasi_status,visit_dpjp_status,status_bed,bed_ready_at,waktu_masuk`;
   const bedStatuses = ['Menunggu Cleaning Service', 'Menunggu Linen/Alat', 'Kamar Siap - Menunggu Transpor'];
   const readyBedStatus = bedStatuses[2];
   const defaultBedStatus = bedStatuses[0];
@@ -97,11 +97,11 @@
   }
 
   function slaRowClass(row) {
-    const bedStatus = String(row.status_bed || row.status || '').trim().toLowerCase();
-    if (row.bangsal_tujuan || bedStatus === 'siap' || bedStatus === readyBedStatus.toLowerCase() || !row.waktu_input) return '';
-    const startedAt = new Date(row.waktu_input).getTime();
+    const arrivalTimestamp = row.waktu_masuk || row.waktu_input;
+    if (row.bangsal_tujuan || !arrivalTimestamp) return '';
+    const startedAt = new Date(arrivalTimestamp).getTime();
     if (!Number.isFinite(startedAt)) return '';
-    const minutes = Math.max(0, Math.floor((Date.now() - startedAt) / 60000));
+    const minutes = Math.max(0, (Date.now() - startedAt) / 60000);
     return minutes < 15 ? 'sla-under-15' : minutes <= 30 ? 'sla-between-15-30' : 'sla-over-30';
   }
 
@@ -121,7 +121,9 @@
       statusBedSchemaReady = false;
       if (!migrationWarningShown) {
         migrationWarningShown = true;
-        notify('Jalankan supabase-mpp-migration.sql untuk mengaktifkan status bed dan kolom IGD terbaru.', 'error');
+        const missingColumn = result.error.message.match(/column ["']?monitoring_igd[."']?([a-z_]+)["']? does not exist/i)?.[1];
+        const detail = missingColumn ? `Kolom monitoring_igd.${missingColumn} belum ada.` : 'Kolom status bed atau koordinasi terbaru belum tersedia.';
+        notify(`${detail} Data tetap dimuat dengan mode lama. Jalankan supabase-mpp-migration.sql di SQL Editor Supabase.`, 'error');
       }
       result = await supabase.from('monitoring_igd').select(legacyColumns)
         .order('tanggal', { ascending: false }).order('waktu_input', { ascending: false }).limit(1000);
@@ -135,12 +137,14 @@
     }
     records = (data || []).map((row) => ({ ...row, status_bed: row.status_bed || defaultBedStatus }));
     window.dataIgdLokal = records;
+    window.dispatchEvent(new CustomEvent('mppcare:igd-data-updated', { detail: { records } }));
     populatePatientSelects();
     updateStatistics();
     renderHeatmap();
     renderCurrentView();
     if (!heatmapTimer) heatmapTimer = window.setInterval(() => {
       renderHeatmap();
+      renderCurrentView();
       checkCriticalAlarm();
     }, 60000);
     checkCriticalAlarm();
@@ -372,7 +376,12 @@
     button.classList.toggle('btn-warning', !active);
     button.innerHTML = active ? '<i class="fas fa-times-circle me-1"></i>Matikan Code' : '<i class="fas fa-exclamation-triangle me-1"></i>Code Yellow / Orange';
     const audio = byId('audioBencana');
-    if (active) { audio.loop = true; audio.play().catch(() => {}); }
+    if (active) {
+      audio.src = '/alarm.mp3';
+      audio.loop = true;
+      audio.currentTime = 0;
+      audio.play().catch((error) => notify(`Alarm Code Yellow tidak dapat diputar: ${error.message}`, 'error'));
+    }
     else { audio.pause(); audio.currentTime = 0; }
   }
 

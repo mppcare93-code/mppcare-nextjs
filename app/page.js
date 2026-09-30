@@ -33,7 +33,7 @@ function startLegacyControllers() {
     await loadScript('https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js', () => Boolean(window.bootstrap));
     await loadScript('https://cdn.jsdelivr.net/npm/chart.js', () => Boolean(window.Chart));
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js', () => Boolean(window.html2pdf));
-    await loadScript('/app.js', () => Boolean(window.MPPCare));
+    await loadScript('/app.js?v=8', () => Boolean(window.MPPCare));
   })();
   return window.__mppcareRuntimePromise;
 }
@@ -83,7 +83,7 @@ export default function HomePage() {
           <h1 id="loginTitle">Masuk ke MPPCare</h1>
           <p className="auth-copy">Pilih akun unit kerja dan masukkan password.</p>
           <div id="authAlert" className="alert d-none" role="alert" />
-          <label htmlFor="loginAccount">Akun<select id="loginAccount" className="form-select" autoComplete="username" required defaultValue=""><option value="" disabled>-- Pilih akun --</option><optgroup label="Administrator"><option value="admin">Administrator</option></optgroup><optgroup label="Admisi IGD"><option value="admisi">Admisi IGD</option></optgroup><optgroup label="Petugas MPP"><option value="mpp1">MPP 1</option><option value="mpp2">MPP 2</option></optgroup><optgroup label="Ruangan"><option value="igd">IGD</option><option value="icu-picu">ICU/PICU</option><option value="nicu">NICU</option><option value="borobudur-1a">BOROBUDUR 1A</option><option value="borobudur-1b">BOROBUDUR 1B</option><option value="borobudur-2">BOROBUDUR 2</option><option value="borobudur-3">BOROBUDUR 3</option><option value="candi-pawon">CANDI PAWON</option><option value="candi-ngawen">CANDI NGAWEN</option><option value="candi-selogriyo">CANDI SELOGRIYO</option><option value="candi-mendut">CANDI MENDUT</option><option value="ibs">IBS</option><option value="poliklinik">POLIKLINIK</option></optgroup></select></label>
+          <label htmlFor="loginAccount">Akun<select id="loginAccount" className="form-select" autoComplete="username" required defaultValue=""><option value="" disabled>Memuat akun...</option></select></label>
           <label>Password<input id="loginPassword" className="form-control" type="password" autoComplete="current-password" required /></label>
           <button id="loginSubmit" className="btn btn-success w-100" type="submit">Masuk</button>
         </form>
@@ -104,6 +104,7 @@ export default function HomePage() {
             <li data-role="ppa,admin"><a className="nav-link" href="/?view=view-form-ppa"><i className="fas fa-file-medical" />Form Aktivasi PPA</a></li>
             <li data-role="mpp,admin"><a className="nav-link text-warning fw-bold" href="/workspace-mpp#view-tindak-lanjut"><i className="fas fa-user-md" />Tindak Lanjut MPP</a></li>
             <li data-role="mpp,admin"><a className="nav-link text-info fw-bold" href="/?view=view-form-a"><i className="fas fa-print" />Cetak Form A (MPP)</a></li>
+            <li data-role="admin,mpp_manager"><button className="nav-link" type="button" onClick={(event) => window.switchView?.('view-kelola-mpp', event.currentTarget)}><i className="fas fa-user-gear" />Kelola Akun MPP</button></li>
             <li data-role="ppa,mpp,admin,admisi"><a className="nav-link" href="/?view=view-igd"><i className="fas fa-ambulance" />Dashboard Stagnansi IGD</a></li>
           </ul>
           <div className="mt-auto p-3 text-center border-top border-danger sidebar-developer"><small className="text-white-50 fw-bold">Developed by</small><br /><span className="text-white fw-bold">Daniel Ari Kristianto</span></div>
@@ -114,8 +115,10 @@ export default function HomePage() {
             <button type="button" className="btn btn-outline-primary border-0 fs-4" id="sidebarCollapse" aria-label="Toggle sidebar"><i className="fas fa-bars" /></button>
             <h5 className="mb-0 fw-bold text-primary">Sistem Informasi MPP <span className="text-dark">RSUD Merah Putih</span></h5>
             <span id="userEmail" className="text-muted small ms-auto me-2" />
+            <button id="bukaPengaturanTampilan" className="btn btn-sm btn-outline-secondary" type="button" aria-label="Pengaturan tampilan" title="Pengaturan tampilan"><i className="fas fa-palette" aria-hidden="true" /><span className="d-none d-md-inline ms-1">Tampilan</span></button>
             <button id="logoutButton" className="btn btn-sm btn-outline-danger" type="button">Keluar</button>
           </div>
+          <div id="view-pengaturan-tampilan" />
 
           <div className="container-fluid p-4">
             <section id="view-dashboard" className="view-section active-view" aria-labelledby="dashboard-title">
@@ -151,6 +154,7 @@ export default function HomePage() {
             <section id="view-form-ppa" className="view-section d-none" aria-label="Form Aktivasi PPA" />
             <section id="view-tindak-lanjut" className="view-section d-none" aria-label="Tindak Lanjut MPP" />
             <section id="view-form-a" className="view-section d-none" aria-label="Cetak Form A" />
+            <section id="view-kelola-mpp" className="view-section d-none" aria-label="Kelola Akun MPP" />
             <section id="view-igd" className="view-section d-none" aria-label="Koordinasi Stagnasi IGD" />
           </div>
 

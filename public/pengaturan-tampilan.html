@@ -1,0 +1,50 @@
+<div class="modal fade" id="modalPengaturanTampilan" tabindex="-1" aria-labelledby="judulPengaturanTampilan" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content appearance-modal">
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow mb-1">PREFERENSI PRIBADI</p>
+          <h2 class="modal-title h5 fw-bold mb-0" id="judulPengaturanTampilan">Pengaturan Tampilan</h2>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body">
+        <fieldset class="appearance-setting mb-4">
+          <legend class="form-label fw-bold">Skin warna</legend>
+          <div id="pilihanSkinTampilan" class="appearance-skins" role="group" aria-label="Pilih skin warna">
+            <button type="button" class="appearance-skin" data-theme="emerald" aria-pressed="false"><span class="appearance-swatch" style="--swatch-a:#0f766e;--swatch-b:#12313c" aria-hidden="true"></span><span>Emerald</span></button>
+            <button type="button" class="appearance-skin" data-theme="ocean" aria-pressed="false"><span class="appearance-swatch" style="--swatch-a:#087e9b;--swatch-b:#143d59" aria-hidden="true"></span><span>Ocean</span></button>
+            <button type="button" class="appearance-skin" data-theme="orchid" aria-pressed="false"><span class="appearance-swatch" style="--swatch-a:#8456a6;--swatch-b:#392c4d" aria-hidden="true"></span><span>Orchid</span></button>
+            <button type="button" class="appearance-skin" data-theme="terracotta" aria-pressed="false"><span class="appearance-swatch" style="--swatch-a:#b65d3d;--swatch-b:#573c36" aria-hidden="true"></span><span>Terracotta</span></button>
+            <button type="button" class="appearance-skin" data-theme="citrus" aria-pressed="false"><span class="appearance-swatch" style="--swatch-a:#758523;--swatch-b:#33422d" aria-hidden="true"></span><span>Citrus</span></button>
+            <button type="button" class="appearance-skin" data-theme="midnight" aria-pressed="false"><span class="appearance-swatch" style="--swatch-a:#53b8a5;--swatch-b:#152431" aria-hidden="true"></span><span>Midnight</span></button>
+          </div>
+        </fieldset>
+
+        <label class="appearance-setting d-grid gap-2 mb-4" for="pilihanFontTampilan">
+          <span class="form-label fw-bold mb-0">Font</span>
+          <select id="pilihanFontTampilan" class="form-select">
+            <option value="jakarta">Plus Jakarta Sans</option>
+            <option value="nunito">Nunito Sans</option>
+            <option value="atkinson">Atkinson Hyperlegible</option>
+            <option value="source-serif">Source Serif 4</option>
+          </select>
+        </label>
+
+        <fieldset class="appearance-setting">
+          <legend class="form-label fw-bold">Kepadatan tampilan</legend>
+          <div class="btn-group w-100" role="group" aria-label="Kepadatan tampilan">
+            <input class="btn-check" type="radio" name="kepadatanTampilan" id="tampilanNyaman" value="comfortable" autocomplete="off">
+            <label class="btn btn-outline-primary" for="tampilanNyaman">Nyaman</label>
+            <input class="btn-check" type="radio" name="kepadatanTampilan" id="tampilanRingkas" value="compact" autocomplete="off">
+            <label class="btn btn-outline-primary" for="tampilanRingkas">Ringkas</label>
+          </div>
+        </fieldset>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <button id="resetTampilan" type="button" class="btn btn-outline-secondary"><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Reset</button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Selesai</button>
+      </div>
+    </div>
+  </div>
+</div>

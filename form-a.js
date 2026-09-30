@@ -191,15 +191,20 @@
       ttd_mpp_data_url: getSignatureDataUrl()
     };
     const id = document.getElementById('fa_record_id').value;
+    const button = document.getElementById('btnSimpanDataFormA');
+    button.disabled = true;
     try {
       const result = id
-        ? await supabase.from('form_a_mpp').update(row).eq('id', id)
+        ? await supabase.from('form_a_mpp').update(row).eq('id', id).select('id').maybeSingle()
         : await supabase.from('form_a_mpp').insert(row).select('id').single();
       if (result.error) throw result.error;
-      if (!id && result.data?.id) document.getElementById('fa_record_id').value = result.data.id;
+      if (!result.data?.id) throw new Error('Form A tidak tersimpan. Data tidak ditemukan atau akun tidak memiliki izin untuk memperbaruinya.');
+      document.getElementById('fa_record_id').value = result.data.id;
       app.setAlert('alertFormA', 'Form A berhasil disimpan.', 'success');
     } catch (error) {
       app.setAlert('alertFormA', error.message);
+    } finally {
+      button.disabled = false;
     }
   }
 

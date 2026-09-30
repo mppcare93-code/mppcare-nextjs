@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.monitoring_igd (
   status_bed VARCHAR(50) NOT NULL DEFAULT 'Menunggu Cleaning Service'
     CHECK (status_bed IN ('Menunggu Cleaning Service', 'Menunggu Linen/Alat', 'Kamar Siap - Menunggu Transpor')),
   bed_ready_at TIMESTAMPTZ,
+  waktu_masuk TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   waktu_input TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -66,6 +67,16 @@ ALTER TABLE public.monitoring_igd
 
 ALTER TABLE public.monitoring_igd
   ADD COLUMN IF NOT EXISTS bed_ready_at TIMESTAMPTZ;
+
+ALTER TABLE public.monitoring_igd
+  ADD COLUMN IF NOT EXISTS waktu_masuk TIMESTAMPTZ;
+
+UPDATE public.monitoring_igd
+SET waktu_masuk = waktu_input
+WHERE waktu_masuk IS NULL;
+
+ALTER TABLE public.monitoring_igd
+  ALTER COLUMN waktu_masuk SET DEFAULT CURRENT_TIMESTAMP;
 
 ALTER TABLE public.monitoring_igd
   ADD COLUMN IF NOT EXISTS lab_status VARCHAR(20),

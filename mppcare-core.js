@@ -73,16 +73,24 @@
     },
     async refreshData() {
       const { role, mppTarget } = app.state;
-      const { data, error } = await supabase.from('aktivasi_mpp')
-        .select('id,tgl_aktivasi,tgl_masuk_rs,nama_pasien,no_rm,usia,ruang,nama_pelapor,jenis_pembiayaan,diagnosa,dpjp,data_informasi,mpp_tujuan,status,waktu_input')
-        .order('waktu_input', { ascending: false }).limit(500);
-      if (error) {
-        app.setAlert('dashboardAlert', error.message);
-        return;
+      const pageSize = 500;
+      const activations = [];
+      for (let offset = 0; ; offset += pageSize) {
+        let query = supabase.from('aktivasi_mpp')
+          .select('id,tgl_aktivasi,tgl_masuk_rs,nama_pasien,no_rm,usia,ruang,nama_pelapor,jenis_pembiayaan,diagnosa,dpjp,data_informasi,mpp_tujuan,status,waktu_input');
+        if (role === 'mpp') query = query.eq('mpp_tujuan', mppTarget);
+        const { data, error } = await query
+          .order('waktu_input', { ascending: false })
+          .order('id', { ascending: true })
+          .range(offset, offset + pageSize - 1);
+        if (error) {
+          app.setAlert('dashboardAlert', error.message);
+          return;
+        }
+        activations.push(...(data || []));
+        if (!data || data.length < pageSize) break;
       }
-      app.state.activations = role === 'mpp'
-        ? (data || []).filter((row) => row.mpp_tujuan === mppTarget)
-        : (data || []);
+      app.state.activations = activations;
       window.dashboardActivations = app.state.activations;
       Object.values(app.modules).forEach((module) => module.onActivations?.(app.state.activations));
     }
@@ -113,7 +121,8 @@
     const role = app.getUserRole(session.user);
     const mppTarget = app.getUserMppTarget(session.user);
     const room = app.getUserRoom(session.user);
-    const profile = roomAccounts.find(([, assignedRoom]) => assignedRoom === room);
+    const email = session.user.email?.toLowerCase() || '';
+    const ppaUsername = email.endsWith('@mppcare.invalid') ? email.slice(0, -'@mppcare.invalid'.length) : '';
 
     if (!['ppa', 'mpp', 'admin'].includes(role)) {
       app.setAlert('authAlert', 'Akun belum memiliki role ppa atau mpp. Set role di Supabase Auth → Users → app_metadata / raw_app_meta_data, lalu login ulang.');
@@ -127,7 +136,7 @@
       shell?.classList.add('d-none');
       return;
     }
-    if (role === 'ppa' && (!profile || session.user.email?.toLowerCase() !== accountEmail(profile[0]))) {
+    if (role === 'ppa' && (!room || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(ppaUsername))) {
       await supabase.auth.signOut();
       app.setAlert('authAlert', 'Akun ruangan belum memiliki app_metadata.room yang cocok. Atur metadata sesuai ruangan akun di Supabase.');
       return;

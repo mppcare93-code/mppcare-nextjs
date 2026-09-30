@@ -6,13 +6,15 @@
 
   const modules = [
     'supabase-igd.js',
-    'mppcare-core.js',
+    'mppcare-core.js?v=7',
     'dashboard.js',
     'workspace-mpp.js',
     'arsip-mpp.js',
     'form-ppa.js',
     'tindak-lanjut-mpp.js',
-    'form-a.js'
+    'form-a.js',
+    'kelola-mpp-accounts.js?v=5',
+    'pengaturan-tampilan.js?v=1'
   ];
   if (document.getElementById('view-igd')) modules.push('igd.js');
   const loadModule = (index) => {

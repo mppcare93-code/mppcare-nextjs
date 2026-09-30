@@ -1,0 +1,45 @@
+<section class="mb-4" aria-labelledby="kelolaMppTitle">
+  <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-4 border-bottom border-primary pb-3">
+    <div>
+      <p class="eyebrow mb-1">ADMINISTRASI AKUN</p>
+      <h1 id="kelolaMppTitle" class="h3 fw-bold text-primary mb-0">Kelola Akun MPP</h1>
+    </div>
+    <button id="refreshMppAccounts" class="btn btn-outline-primary btn-sm" type="button" aria-label="Muat ulang akun MPP"><i class="fas fa-rotate me-1" aria-hidden="true"></i>Muat Ulang</button>
+  </div>
+  <p class="text-muted mb-2">Ubah nama petugas atau atur password baru untuk akun operasional yang terdaftar.</p>
+  <p class="small text-muted mb-3">Akun Administrator dan Pengelola hanya dapat diubah oleh Administrator.</p>
+  <div id="mppAccountsAlert" class="alert d-none" role="status" aria-live="polite"></div>
+  <section class="border-bottom pb-4 mb-3" aria-labelledby="buatAkunRuanganTitle">
+    <h2 id="buatAkunRuanganTitle" class="h5 fw-bold mb-3">Buat Akun Bangsal / Ruangan</h2>
+    <form id="formBuatAkunRuangan">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label fw-semibold" for="akunRuanganUsername">Username login</label>
+          <div class="input-group"><input id="akunRuanganUsername" name="username" class="form-control" type="text" minlength="2" maxlength="50" pattern="[a-z0-9]+(-[a-z0-9]+)*" autocomplete="off" required><span class="input-group-text">@mppcare.invalid</span></div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label fw-semibold" for="akunRuanganNama">Nama bangsal / ruangan</label>
+          <input id="akunRuanganNama" name="room" class="form-control" type="text" minlength="2" maxlength="100" required>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label fw-semibold" for="akunRuanganPetugas">Nama petugas</label>
+          <input id="akunRuanganPetugas" name="displayName" class="form-control" type="text" minlength="2" maxlength="150" required>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label fw-semibold" for="akunRuanganPassword">Password awal</label>
+          <input id="akunRuanganPassword" name="password" class="form-control" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <label class="form-label fw-semibold" for="akunRuanganPasswordUlang">Ulangi password</label>
+          <input id="akunRuanganPasswordUlang" name="confirmPassword" class="form-control" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+        </div>
+        <div class="col-md-6 col-lg-3 d-grid">
+          <button id="btnBuatAkunRuangan" class="btn btn-primary" type="submit"><i class="fas fa-user-plus me-1" aria-hidden="true"></i>Buat Akun Ruangan</button>
+        </div>
+      </div>
+    </form>
+  </section>
+  <div id="mppAccountsList" aria-live="polite">
+    <p class="text-muted">Memuat akun...</p>
+  </div>
+</section>

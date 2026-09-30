@@ -8,16 +8,16 @@ function normalizeBangsal(value) {
   return String(value || '').trim().toUpperCase().replace(/\s+/g, '').replace(/\//g, ',');
 }
 
-function elapsedSinceInput(record, now = Date.now()) {
-  if (!record?.waktu_input) return null;
-  const startedAt = new Date(record.waktu_input).getTime();
+function elapsedSinceArrival(record, now = Date.now()) {
+  const timestamp = record?.waktu_masuk || record?.waktu_input;
+  if (!timestamp) return null;
+  const startedAt = new Date(timestamp).getTime();
   if (!Number.isFinite(startedAt) || startedAt > now) return null;
-  return Math.floor((now - startedAt) / 60000);
+  return (now - startedAt) / 60000;
 }
 
-function isNotReady(record) {
-  const status = String(record.status_bed || record.status || '').trim().toLowerCase();
-  return !record.bangsal_tujuan && status !== 'siap' && status !== 'kamar siap - menunggu transpor';
+function isStillInIgd(record) {
+  return !record?.bangsal_tujuan;
 }
 
 function applySlaRowColors() {
@@ -28,31 +28,36 @@ function applySlaRowColors() {
   rows.forEach((row) => {
     const record = byId.get(row.dataset.igdId);
     row.classList.remove('sla-under-15', 'sla-between-15-30', 'sla-over-30');
-    if (!record || !isNotReady(record)) return;
-    const minutes = elapsedSinceInput(record);
+    if (!record || !isStillInIgd(record)) return;
+    const minutes = elapsedSinceArrival(record);
     if (minutes == null) return;
     row.classList.add(minutes < 15 ? 'sla-under-15' : minutes <= 30 ? 'sla-between-15-30' : 'sla-over-30');
   });
 }
 
-function playFallbackTone(audioContextRef, kind) {
+async function playFallbackTone(audioContextRef, kind) {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return;
   try {
     const context = audioContextRef.current || new AudioContextClass();
     audioContextRef.current = context;
-    context.resume().catch(() => {});
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = 'square';
-    oscillator.frequency.value = kind === 'alarm' ? 880 : 520;
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.38);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.4);
+    await context.resume();
+    const baseFrequency = kind === 'alarm' ? 880 : 520;
+    [0, 0.24, 0.48].forEach((offset, index) => {
+      const startAt = context.currentTime + offset;
+      const duration = index === 2 ? 0.22 : 0.14;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'square';
+      oscillator.frequency.value = index === 1 ? baseFrequency * 0.75 : baseFrequency;
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(0.2, startAt + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + duration + 0.02);
+    });
   } catch (error) {
     console.warn('Audio fallback tidak dapat diputar:', error);
   }
@@ -63,19 +68,52 @@ export default function DashboardBangsal() {
   const [shiftActive, setShiftActive] = useState(false);
   const [bangsal, setBangsal] = useState('');
   const [status, setStatus] = useState('Notifikasi shift belum aktif.');
+  const [slaAlarmActive, setSlaAlarmActive] = useState(false);
+  const [slaOverdueCount, setSlaOverdueCount] = useState(0);
   const audioContextRef = useRef(null);
   const alarmAudioRef = useRef(null);
-  const buzzerAudioRef = useRef(null);
-  const alertedIdsRef = useRef(new Set());
+  const slaAlarmActiveRef = useRef(false);
   const originalTitleRef = useRef('');
   const titleTimerRef = useRef(null);
 
   function playAudio(kind) {
-    const audioRef = kind === 'alarm' ? alarmAudioRef : buzzerAudioRef;
-    const path = kind === 'alarm' ? '/alarm.mp3' : '/buzzer.mp3';
-    if (!audioRef.current) audioRef.current = new Audio(path);
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().catch(() => playFallbackTone(audioContextRef, kind));
+    if (!alarmAudioRef.current) alarmAudioRef.current = new Audio('/alarm.mp3');
+    alarmAudioRef.current.currentTime = 0;
+    alarmAudioRef.current.play().catch(() => { void playFallbackTone(audioContextRef, kind); });
+  }
+
+  function getOverdueCount() {
+    const records = Array.isArray(window.dataIgdLokal) ? window.dataIgdLokal : [];
+    return records.filter((record) => {
+      const minutes = elapsedSinceArrival(record);
+      return isStillInIgd(record) && minutes != null && minutes > 30;
+    }).length;
+  }
+
+  function playSlaAlarm() {
+    if (!alarmAudioRef.current) alarmAudioRef.current = new Audio('/alarm.mp3');
+    alarmAudioRef.current.loop = false;
+    alarmAudioRef.current.currentTime = 0;
+    alarmAudioRef.current.play().catch(() => { void playFallbackTone(audioContextRef, 'alarm'); });
+  }
+
+  function toggleSlaAlarm() {
+    const nextActive = !slaAlarmActive;
+    if (nextActive) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioContextRef.current = audioContextRef.current || new AudioContextClass();
+        audioContextRef.current.resume().catch(() => {});
+      }
+      const overdueCount = getOverdueCount();
+      setSlaOverdueCount(overdueCount);
+      if (overdueCount > 0) playSlaAlarm();
+    } else if (alarmAudioRef.current) {
+      alarmAudioRef.current.pause();
+      alarmAudioRef.current.currentTime = 0;
+    }
+    slaAlarmActiveRef.current = nextActive;
+    setSlaAlarmActive(nextActive);
   }
 
   useEffect(() => {
@@ -155,33 +193,40 @@ export default function DashboardBangsal() {
   }, [shiftActive, bangsal]);
 
   useEffect(() => {
-    const checkSla = () => {
+    const updateSla = () => {
       applySlaRowColors();
-      if (!shiftActive) return;
-      const records = Array.isArray(window.dataIgdLokal) ? window.dataIgdLokal : [];
-      let hasNewOverdue = false;
-      records.forEach((record) => {
-        const minutes = elapsedSinceInput(record);
-        if (!isNotReady(record) || minutes == null || minutes <= 30) {
-          alertedIdsRef.current.delete(record.id);
-          return;
-        }
-        if (!alertedIdsRef.current.has(record.id)) {
-          alertedIdsRef.current.add(record.id);
-          hasNewOverdue = true;
-        }
-      });
-      if (hasNewOverdue) {
-        const audio = buzzerAudioRef.current || (buzzerAudioRef.current = new Audio('/buzzer.mp3'));
-        audio.currentTime = 0;
-        audio.play().catch(() => playFallbackTone(audioContextRef, 'buzzer'));
-        toast('SLA IGD melewati 30 menit.', { duration: 7000, position: 'top-right' });
+      const overdueCount = getOverdueCount();
+      setSlaOverdueCount(overdueCount);
+      if (slaAlarmActiveRef.current && overdueCount > 0) playSlaAlarm();
+    };
+    updateSla();
+    window.addEventListener('mppcare:igd-data-updated', updateSla);
+    const timer = window.setInterval(updateSla, 60000);
+    return () => {
+      window.removeEventListener('mppcare:igd-data-updated', updateSla);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!slaAlarmActive) return undefined;
+    const checkAndPlay = () => {
+      const overdueCount = getOverdueCount();
+      setSlaOverdueCount(overdueCount);
+      if (overdueCount > 0) {
+        playSlaAlarm();
+      } else if (alarmAudioRef.current) {
+        alarmAudioRef.current.pause();
+        alarmAudioRef.current.currentTime = 0;
       }
     };
-    checkSla();
-    const timer = window.setInterval(checkSla, 15000);
-    return () => window.clearInterval(timer);
-  }, [shiftActive]);
+    const timer = window.setInterval(checkAndPlay, 60000);
+    return () => {
+      window.clearInterval(timer);
+      alarmAudioRef.current?.pause();
+      if (alarmAudioRef.current) alarmAudioRef.current.currentTime = 0;
+    };
+  }, [slaAlarmActive]);
 
   async function startShift() {
     const app = window.MPPCare;
@@ -208,15 +253,29 @@ export default function DashboardBangsal() {
   }
 
   const controls = portalTarget ? createPortal(
-    <div className="igd-shift-controls">
-      <div>
-        <strong>Status Notifikasi Bangsal</strong>
-        <span className={shiftActive ? 'igd-shift-status is-active' : 'igd-shift-status'} role="status">{status}</span>
+    <div className="igd-realtime-control-stack">
+      <div className="igd-sla-alarm-controls">
+        <div>
+          <strong>Monitoring SLA 30 Menit</strong>
+          <span className={slaOverdueCount ? 'igd-sla-status is-overdue' : 'igd-sla-status'} role="status">
+            {slaOverdueCount ? `${slaOverdueCount} pasien melewati SLA` : 'Tidak ada pasien melewati SLA'}
+          </span>
+        </div>
+        <button className={slaAlarmActive ? 'btn btn-danger fw-bold' : 'btn btn-outline-primary fw-bold'} type="button" aria-pressed={slaAlarmActive} onClick={toggleSlaAlarm}>
+          <i className={`fas ${slaAlarmActive ? 'fa-bell' : 'fa-bell-slash'} me-2`} aria-hidden="true" />
+          {slaAlarmActive ? 'Matikan Alarm' : 'Aktifkan Alarm'}
+        </button>
       </div>
-      <button className={shiftActive ? 'btn btn-outline-danger fw-bold' : 'btn btn-primary fw-bold'} type="button" disabled={!bangsal && !shiftActive} onClick={() => shiftActive ? endShift() : startShift()}>
-        <i className={`fas ${shiftActive ? 'fa-bell-slash' : 'fa-bell'} me-2`} />
-        {shiftActive ? 'Akhiri Shift' : 'Mulai Shift & Aktifkan Notifikasi'}
-      </button>
+      <div className="igd-shift-controls">
+        <div>
+          <strong>Status Notifikasi Bangsal</strong>
+          <span className={shiftActive ? 'igd-shift-status is-active' : 'igd-shift-status'} role="status">{status}</span>
+        </div>
+        <button className={shiftActive ? 'btn btn-outline-danger fw-bold' : 'btn btn-primary fw-bold'} type="button" disabled={!bangsal && !shiftActive} onClick={() => shiftActive ? endShift() : startShift()}>
+          <i className={`fas ${shiftActive ? 'fa-bell-slash' : 'fa-bell'} me-2`} />
+          {shiftActive ? 'Akhiri Shift' : 'Mulai Shift & Aktifkan Notifikasi'}
+        </button>
+      </div>
     </div>,
     portalTarget
   ) : null;

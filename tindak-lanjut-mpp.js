@@ -15,7 +15,8 @@
     if (!form || !tanggalTL || !namaPetugas || !namaAkun || !selectPasien || !mppIdUnik) return;
     wired = true;
     tanggalTL.value = app.today();
-    const name = user.user_metadata?.full_name || user.app_metadata?.nama_petugas || user.email || '';
+    const target = String(user.app_metadata?.mpp_tujuan || '').trim().toUpperCase();
+    const name = user.user_metadata?.full_name || user.app_metadata?.nama_petugas || (target ? `MPP ${target}` : user.email || '');
     namaPetugas.value = name;
     namaAkun.textContent = name;
     selectPasien.addEventListener('change', (event) => {

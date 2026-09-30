@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "accounts:provision": "node scripts/manage-supabase-accounts.js provision",
+    "accounts:provision-manager": "node scripts/manage-supabase-accounts.js provision-manager",
     "accounts:delete-legacy": "node scripts/manage-supabase-accounts.js delete-legacy"
   },
   "dependencies": {

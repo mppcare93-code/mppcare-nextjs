@@ -118,6 +118,32 @@ async function provision(config) {
   console.log(`Selesai. ${accounts.length} akun diproses; password awal hanya diterapkan pada akun baru.`);
 }
 
+async function provisionMppManager(config) {
+  const password = process.env.MPP_MANAGER_INITIAL_PASSWORD || '';
+  if (password.length < 12) {
+    throw new Error('Atur MPP_MANAGER_INITIAL_PASSWORD di .env.local dengan minimal 12 karakter. Password tidak ditampilkan oleh skrip.');
+  }
+
+  const email = 'mpp-manager@mppcare.invalid';
+  const users = await listUsers(config);
+  const existingUser = users.find((user) => user.email?.toLowerCase() === email);
+  if (existingUser) {
+    const metadata = { ...(existingUser.app_metadata || {}), role: 'mpp_manager' };
+    await adminRequest(config, 'PUT', `/${encodeURIComponent(existingUser.id)}`, { app_metadata: metadata });
+    console.log(`Metadata pengelola MPP diperbarui (${existingUser.id}); password tetap.`);
+    return;
+  }
+
+  const created = await adminRequest(config, 'POST', '', {
+    email,
+    password,
+    email_confirm: true,
+    app_metadata: { role: 'mpp_manager' },
+  });
+  const user = created.user || created;
+  console.log(`Akun pengelola MPP dibuat (${user.id}); password awal tidak ditampilkan.`);
+}
+
 async function deleteLegacy(config, confirmed) {
   const ids = [...new Set((process.env.LEGACY_AUTH_USER_IDS || '').split(',').map((id) => id.trim()).filter(Boolean))];
   if (!ids.length) {
@@ -152,8 +178,9 @@ async function main() {
   const [command, ...flags] = process.argv.slice(2);
   const config = getConfig();
   if (command === 'provision') return provision(config);
+  if (command === 'provision-manager') return provisionMppManager(config);
   if (command === 'delete-legacy') return deleteLegacy(config, flags.includes('--confirm-delete'));
-  throw new Error('Gunakan perintah: provision atau delete-legacy.');
+  throw new Error('Gunakan perintah: provision, provision-manager, atau delete-legacy.');
 }
 
 main().catch((error) => {
