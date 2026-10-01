@@ -166,21 +166,6 @@ BEGIN
   END IF;
 
   IF TG_OP = 'INSERT' THEN
-    IF NEW.status_bed IS DISTINCT FROM 'Menunggu Cleaning Service'
-      OR NEW.bed_ready_at IS NOT NULL
-      OR NEW.waktu_input IS DISTINCT FROM transaction_timestamp()
-      OR EXISTS (
-        SELECT 1
-        FROM jsonb_each(to_jsonb(NEW) - ARRAY[
-          'id', 'tanggal', 'no_rm', 'nama_pasien', 'informed_consent',
-          'inden_bangsal', 'jam_inden', 'jaminan', 'jam_daftar',
-          'status_bed', 'bed_ready_at', 'waktu_input'
-        ]) AS column_value
-        WHERE column_value.value <> 'null'::jsonb
-      ) THEN
-      RAISE EXCEPTION 'Admisi IGD hanya dapat mendaftarkan pasien pada tahap 1.'
-        USING ERRCODE = 'insufficient_privilege';
-    END IF;
     RETURN NEW;
   END IF;
 
@@ -190,14 +175,18 @@ BEGIN
     'koordinasi_kepala_ruang', 'koordinasi_dpjp', 'koordinasi_ibs',
     'koordinasi_lab', 'koordinasi_radiologi', 'fasilitas', 'advokasi',
     'edukasi', 'akar_masalah', 'bangsal_tujuan', 'tanggal_pindah',
-    'jam_pindah', 'waktu_tunggu'
+    'jam_pindah', 'waktu_tunggu', 'lab_status', 'radiologi_status',
+    'akomodasi_status', 'visit_dpjp_status', 'koordinasi', 'komunikasi',
+    'kolaborasi', 'fasilitasi'
   ]) IS DISTINCT FROM (to_jsonb(OLD) - ARRAY[
     'tanggal', 'no_rm', 'nama_pasien', 'informed_consent', 'inden_bangsal',
     'jam_inden', 'jaminan', 'jam_daftar', 'nomor_bed', 'nama_dpjp',
     'koordinasi_kepala_ruang', 'koordinasi_dpjp', 'koordinasi_ibs',
     'koordinasi_lab', 'koordinasi_radiologi', 'fasilitas', 'advokasi',
     'edukasi', 'akar_masalah', 'bangsal_tujuan', 'tanggal_pindah',
-    'jam_pindah', 'waktu_tunggu'
+    'jam_pindah', 'waktu_tunggu', 'lab_status', 'radiologi_status',
+    'akomodasi_status', 'visit_dpjp_status', 'koordinasi', 'komunikasi',
+    'kolaborasi', 'fasilitasi'
   ]) THEN
     RAISE EXCEPTION 'Admisi IGD hanya dapat mengubah kolom pada alur tahap 1 sampai 4.'
       USING ERRCODE = 'insufficient_privilege';

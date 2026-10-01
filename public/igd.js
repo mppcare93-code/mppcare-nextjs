@@ -245,7 +245,7 @@
         (row.advokasi || row.koordinasi_radiologi) && `Advokasi: ${row.advokasi || row.koordinasi_radiologi}`
       ].filter(Boolean).join(' · ') || '-';
       const actions = role === 'admisi'
-        ? '<span class="small text-muted">Monitor</span>'
+        ? `<button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit"><i class="fas fa-edit"></i></button>`
         : `<button type="button" class="btn btn-sm btn-outline-primary" data-action="edit" data-id="${escapeHtml(row.id)}" title="Edit"><i class="fas fa-edit"></i></button><button type="button" class="btn btn-sm btn-outline-success" data-action="wa" data-id="${escapeHtml(row.id)}" title="WhatsApp"><i class="fab fa-whatsapp"></i></button><button type="button" class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${escapeHtml(row.id)}" title="Hapus"><i class="fas fa-trash-alt"></i></button>`;
       return `<tr data-igd-id="${escapeHtml(row.id)}" class="${info.row} ${slaRowClass(row)}"><td class="text-center fw-bold">${index + 1}</td><td>${dateText(row.tanggal)}<br><strong>${escapeHtml(row.no_rm)}</strong></td><td class="fw-bold">${escapeHtml(row.nama_pasien)}</td><td><span class="badge bg-secondary">${escapeHtml(row.jaminan || '-')}</span><br><small>IC: ${escapeHtml(row.informed_consent || '-')}</small></td><td><strong class="d-block">${escapeHtml(row.inden_bangsal || '-')}</strong><small>Jam: ${timeText(row.jam_inden || row.jam_daftar)}</small><br>${status}</td><td>${bedStatusCell}</td><td><small class="d-block">Bed: <b>${escapeHtml(row.nomor_bed || '-')}</b></small><small>DPJP: <b>${escapeHtml(row.nama_dpjp || '-')}</b></small></td><td><small>${escapeHtml(mppNotes)}</small><br><button type="button" class="btn btn-sm btn-outline-info mt-1" data-action="details" data-id="${escapeHtml(row.id)}">Detail</button></td><td><small class="text-danger fw-bold">${escapeHtml(row.akar_masalah || '-')}</small></td><td class="igd-row-actions">${actions}</td></tr>`;
     }).join('');
@@ -389,7 +389,7 @@
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const action = button.dataset.action;
-    if (role === 'admisi' && ['toggle-disaster', 'share-disaster', 'report-whatsapp', 'toggle-tv', 'edit', 'delete', 'wa', 'save-bed-status', 'mark-bed-ready'].includes(action)) return;
+    if (role === 'admisi' && ['toggle-disaster', 'share-disaster', 'report-whatsapp', 'toggle-tv', 'delete', 'wa', 'save-bed-status', 'mark-bed-ready'].includes(action)) return;
     const row = records.find((item) => item.id === button.dataset.id);
     if (action === 'toggle-disaster') setDisaster(!disasterActive);
     if (action === 'share-disaster') openWhatsApp('🚨 PANGGILAN CODE YELLOW / ORANGE - RS 🚨\n\nTerjadi lonjakan pasien stagnan di IGD. Mohon percepatan koordinasi pemindahan bed.\n\nSistem MPPCare');
@@ -444,18 +444,20 @@
     event.preventDefault();
     const form = event.currentTarget;
     const button = form.querySelector('[type="submit"]');
+    const startedAt = Date.now();
+    let phase = 'prepare';
     button.disabled = true;
     try {
       let error;
       if (stage === 1) {
         const id = text('igdIdEditLokal');
-        if (role === 'admisi' && id) throw new Error('Akun Admisi IGD hanya dapat mendaftarkan pasien baru.');
         const row = {
           tanggal: text('igdTanggal'), no_rm: text('igdNoRM'), nama_pasien: text('igdNamaPasien'),
           informed_consent: text('igdInformedConsent'), inden_bangsal: text('igdIndenBangsal'),
           jam_inden: text('igdJamInden') || null, jaminan: text('igdJaminan'), jam_daftar: text('igdJamDaftar') || null
         };
         const query = id ? supabase.from('monitoring_igd').update(row).eq('id', id) : supabase.from('monitoring_igd').insert(row);
+        phase = 'supabase-write';
         ({ error } = await query);
       } else {
         const id = text(`selectPasienTahap${stage}`);
@@ -486,6 +488,7 @@
                 koordinasi_radiologi: text('mppEdukasiRetensi') || null
               }
             : makeTransferUpdate(id);
+        phase = 'supabase-write';
         ({ error } = await supabase.from('monitoring_igd').update(row).eq('id', id));
       }
       if (error) throw error;
@@ -501,8 +504,22 @@
         byId('igdTanggalPindahManual').value = '';
         byId('igdJamPindahManual').value = '';
       }
+      phase = 'refresh';
       await refresh();
     } catch (error) {
+      console.warn(`[MPPCare][IGD] Gagal menyimpan data tahap ${stage}`, JSON.stringify({
+        stage,
+        role,
+        phase,
+        durationMs: Date.now() - startedAt,
+        error: {
+          name: error?.name || 'Error',
+          code: error?.code || null,
+          message: error?.message || String(error),
+          details: error?.details || null,
+          hint: error?.hint || null
+        }
+      }));
       alertStage(`alertTahap${stage}`, `Gagal menyimpan: ${error.message}`, 'danger');
     } finally {
       button.disabled = false;
