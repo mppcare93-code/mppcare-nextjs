@@ -162,39 +162,49 @@
   }
 
   async function saveFormA() {
-    const nama = document.getElementById('fa_nama').textContent.trim();
-    const rm = document.getElementById('fa_rm').textContent.trim();
-    const activationId = document.getElementById('fa_aktivasi_id').value;
-    if (!activationId || !nama || !rm) return app.setAlert('alertFormA', 'Pilih pasien dari aktivasi sebelum menyimpan Form A.');
-    for (const id of ['fa_tgl_lahir', 'fa_tgl_mrs', 'fa_tgl_kaji']) {
-      const value = document.getElementById(id).value;
-      if (value && !parseDate(value)) return app.setAlert('alertFormA', 'Format tanggal harus DD/MM/YYYY atau YYYY-MM-DD.');
-    }
-    for (const id of ['fa_jam_mrs', 'fa_jam_kaji']) {
-      const value = document.getElementById(id).value;
-      if (value && !parseTime(value)) return app.setAlert('alertFormA', 'Format jam harus HH:MM atau HH:MM:SS.');
-    }
-    const row = {
-      aktivasi_mpp_id: activationId,
-      nama_pasien: nama,
-      nomor_rm: rm,
-      tgl_lahir: parseDate(document.getElementById('fa_tgl_lahir').value),
-      tgl_mrs: parseDate(document.getElementById('fa_tgl_mrs').value),
-      tgl_pengkajian: parseDate(document.getElementById('fa_tgl_kaji').value),
-      jam_mrs: parseTime(document.getElementById('fa_jam_mrs').value),
-      jam_pengkajian: parseTime(document.getElementById('fa_jam_kaji').value),
-      bagian_a_skrining: serializeSection('A'),
-      bagian_b_asesmen: serializeSection('B'),
-      bagian_c_masalah: serializeSection('C'),
-      bagian_d_sasaran: serializeSection('D'),
-      bagian_e_perencanaan: serializeSection('E'),
-      nama_mpp_ttd: document.getElementById('fa_nama_mpp_ttd').value || null,
-      ttd_mpp_data_url: getSignatureDataUrl()
-    };
-    const id = document.getElementById('fa_record_id').value;
     const button = document.getElementById('btnSimpanDataFormA');
     button.disabled = true;
+    let row;
     try {
+      const nama = document.getElementById('fa_nama').textContent.trim();
+      const rm = document.getElementById('fa_rm').textContent.trim();
+      const activationId = document.getElementById('fa_aktivasi_id').value;
+      if (!activationId || !nama || !rm) {
+        app.setAlert('alertFormA', 'Pilih pasien dari aktivasi sebelum menyimpan Form A.');
+        return;
+      }
+      for (const id of ['fa_tgl_lahir', 'fa_tgl_mrs', 'fa_tgl_kaji']) {
+        const value = document.getElementById(id).value;
+        if (value && !parseDate(value)) {
+          app.setAlert('alertFormA', 'Format tanggal harus DD/MM/YYYY atau YYYY-MM-DD.');
+          return;
+        }
+      }
+      for (const id of ['fa_jam_mrs', 'fa_jam_kaji']) {
+        const value = document.getElementById(id).value;
+        if (value && !parseTime(value)) {
+          app.setAlert('alertFormA', 'Format jam harus HH:MM atau HH:MM:SS.');
+          return;
+        }
+      }
+      row = {
+        aktivasi_mpp_id: activationId,
+        nama_pasien: nama,
+        nomor_rm: rm,
+        tgl_lahir: parseDate(document.getElementById('fa_tgl_lahir').value),
+        tgl_mrs: parseDate(document.getElementById('fa_tgl_mrs').value),
+        tgl_pengkajian: parseDate(document.getElementById('fa_tgl_kaji').value),
+        jam_mrs: parseTime(document.getElementById('fa_jam_mrs').value),
+        jam_pengkajian: parseTime(document.getElementById('fa_jam_kaji').value),
+        bagian_a_skrining: serializeSection('A'),
+        bagian_b_asesmen: serializeSection('B'),
+        bagian_c_masalah: serializeSection('C'),
+        bagian_d_sasaran: serializeSection('D'),
+        bagian_e_perencanaan: serializeSection('E'),
+        nama_mpp_ttd: document.getElementById('fa_nama_mpp_ttd').value || null,
+        ttd_mpp_data_url: getSignatureDataUrl()
+      };
+      const id = document.getElementById('fa_record_id').value;
       const result = id
         ? await supabase.from('form_a_mpp').update(row).eq('id', id).select('id').maybeSingle()
         : await supabase.from('form_a_mpp').insert(row).select('id').single();
@@ -208,9 +218,9 @@
         errorCode: error?.code,
         errorDetails: error?.details,
         errorHint: error?.hint,
-        payloadJson: JSON.stringify(row)
+        payloadJson: row ? JSON.stringify(row) : null
       });
-      app.setAlert('alertFormA', error.message);
+      app.setAlert('alertFormA', error.message || 'Terjadi kesalahan saat menyimpan Form A.');
     } finally {
       button.disabled = false;
     }
@@ -267,28 +277,41 @@
     app.setAlert('alertFormA', 'Form A tersimpan dimuat.', 'success');
   }
 
-  function exportFormA() {
-    if (!window.html2pdf) return app.setAlert('alertFormA', 'Library PDF belum dimuat.');
-    const paper = document.getElementById('selectUkuranCetakFormA')?.value || 'A4';
-    const isF4 = paper === 'F4';
-    const area = document.getElementById('areaPrintFormA');
-    if (!area) return;
-
-    area.style.width = '100%';
-    area.style.maxWidth = '100%';
-    area.style.boxSizing = 'border-box';
-
-    window.html2pdf().set({
-      margin: isF4 ? { top: 8, right: 7, bottom: 8, left: 7 } : { top: 6, right: 6, bottom: 6, left: 6 },
-      filename: `Form-A-${(document.getElementById('fa_rm').textContent || 'pasien').replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: {
-        unit: 'mm',
-        format: isF4 ? [210, 330] : 'a4',
-        orientation: 'portrait'
+  async function exportFormA() {
+    const button = document.getElementById('btnCetakFormA');
+    button.disabled = true;
+    try {
+      if (!window.html2pdf) {
+        app.setAlert('alertFormA', 'Library PDF belum dimuat. Periksa koneksi internet lalu coba lagi.');
+        return;
       }
-    }).from(area).save();
+      const paper = document.getElementById('selectUkuranCetakFormA')?.value || 'A4';
+      const isF4 = paper === 'F4';
+      const area = document.getElementById('areaPrintFormA');
+      if (!area) throw new Error('Area cetak Form A tidak ditemukan.');
+
+      area.style.width = '100%';
+      area.style.maxWidth = '100%';
+      area.style.boxSizing = 'border-box';
+
+      await window.html2pdf().set({
+        margin: isF4 ? [8, 7, 8, 7] : [6, 6, 6, 6],
+        filename: `Form-A-${(document.getElementById('fa_rm').textContent || 'pasien').replace(/[^a-zA-Z0-9_-]/g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: {
+          unit: 'mm',
+          format: isF4 ? [210, 330] : 'a4',
+          orientation: 'portrait'
+        }
+      }).from(area).save();
+      app.setAlert('alertFormA', 'PDF Form A berhasil dibuat.', 'success');
+    } catch (error) {
+      console.error('Gagal membuat PDF Form A.', error);
+      app.setAlert('alertFormA', error.message || 'Terjadi kesalahan saat membuat PDF Form A.');
+    } finally {
+      button.disabled = false;
+    }
   }
 
   function wireSignaturePad() {
