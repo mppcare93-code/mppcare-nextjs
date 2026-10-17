@@ -140,9 +140,10 @@
 
   function serializeSection(group) {
     const checked = [...document.querySelectorAll(`#areaPrintFormA [data-group="${group}"][type="checkbox"]:checked`)].map((el) => el.value);
-    const radios = [...document.querySelectorAll('#areaPrintFormA input[type="radio"]:checked')]
-      .filter(() => group === 'B')
-      .reduce((result, el) => ({ ...result, [el.name]: el.value }), {});
+    const radios = group === 'B'
+      ? [...document.querySelectorAll('#areaPrintFormA input[type="radio"]:checked')]
+        .reduce((result, el) => ({ ...result, [el.name]: el.value }), {})
+      : {};
     const extras = [...document.querySelectorAll(`#areaPrintFormA [data-extra-group="${group}"]`)]
       .reduce((result, el) => ({ ...result, [el.dataset.extraKey]: el.value }), {});
     return JSON.stringify({ checked, radios, extras });
@@ -202,6 +203,13 @@
       document.getElementById('fa_record_id').value = result.data.id;
       app.setAlert('alertFormA', 'Form A berhasil disimpan.', 'success');
     } catch (error) {
+      console.error('Gagal menyimpan Form A ke Supabase.', {
+        error,
+        errorCode: error?.code,
+        errorDetails: error?.details,
+        errorHint: error?.hint,
+        payloadJson: JSON.stringify(row)
+      });
       app.setAlert('alertFormA', error.message);
     } finally {
       button.disabled = false;
